@@ -319,7 +319,7 @@ df6 <- df6 |>
          hh_fin_sat, delta_hh_fin_sat, hh_fin_sat_decrease,
          # controls
          age, age_cat, education_cat, student, retired, employed, no_children_hh, partner,
-         l1_net_monthly_income_cat, male
+         l1_net_monthly_income_cat, male, house_owner
   )
 
 # Write

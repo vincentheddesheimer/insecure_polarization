@@ -12,9 +12,6 @@ rm(list = ls())
 # Load packages
 pacman::p_load(tidyverse, data.table, did2s, PanelMatch)
 
-# Set wd
-setwd("~/Documents/GitHub/insecure_polarization/")
-
 # Load LISS data
 df <- fread("data/liss.csv")
 
@@ -112,6 +109,14 @@ m1_fe <- feols(partisan_affect ~ unemployment_shock
                cluster = "id",
                data = df)
 summary(m1_fe)
+
+m1_fe <- feols(partisan_affect ~ i(treat, time_to_treatment, ref = -1) 
+               + age + education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner
+               | id + t,
+               cluster = "id",
+               data = df1)
+summary(m1_fe)
+
 
 ### Callaway Sant'Anna -----------------------------------------------------
 m1_cs <- event_study(
@@ -391,7 +396,6 @@ coef_m3_cs |> filter(t >= -5 & t <= 10) |>
   labs(y="ATT", x = "Relative Time") + 
   guides(col = guide_legend(nrow = 3))
 
-
 ### Panel Match ---------------------------------------------------------
 
 m3_pm <- PanelMatch(
@@ -474,6 +478,35 @@ coefs_m3_pm <- tibble(t = c(0, 1, 2, 3, 4),
 coefs_m3_pm |>
   ggplot(aes(x=t, y = estimate)) +
   geom_point(aes(x = t, y = estimate),  size = 1) +
+  geom_linerange(aes(x = t, ymin = conf.low, ymax = conf.high), linewidth = 0.75) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth = .25, alpha = 0.75) + 
+  geom_vline(xintercept = -0.5, linetype = "dashed", linewidth = .25) +
+  theme_bw() + theme(legend.position= 'bottom') +
+  labs(y="ATT", x = "Relative Time") + 
+  guides(col = guide_legend(nrow = 3))
+
+
+## Outgroup aversion -------------------------------------------------------
+
+### Callaway Sant'Anna -------------------------------------------------------
+
+m4_cs <- event_study(
+  data = df1, yname = "red_overall_mean_distance", idname = "id",
+  tname = "t", gname = "first_treatment_period",
+  xformla = ~ age + education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat,
+  estimator = "did")
+
+coef_m4_cs <- m4_cs |> 
+  select(estimator, t = term, estimate, std.error) |>
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    t = as.numeric(t)
+  )
+
+coef_m4_cs |> filter(t >= -5 & t <= 10) |>
+  ggplot(aes(x=t, y = estimate)) +
+  geom_point(aes(x = t, y = estimate), size = 1) +
   geom_linerange(aes(x = t, ymin = conf.low, ymax = conf.high), linewidth = 0.75) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth = .25, alpha = 0.75) + 
   geom_vline(xintercept = -0.5, linetype = "dashed", linewidth = .25) +
@@ -1322,6 +1355,35 @@ coefs_m3_pm |>
   labs(y="ATT", x = "Relative Time") + 
   guides(col = guide_legend(nrow = 3))
 
+
+
+## Outgroup aversion -------------------------------------------------------
+
+### Callaway Sant'Anna -------------------------------------------------------
+
+m4_cs <- event_study(
+  data = df3, yname = "red_overall_mean_distance", idname = "id",
+  tname = "t", gname = "first_treatment_period",
+  xformla = ~ age + education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat,
+  estimator = "did")
+
+coef_m4_cs <- m4_cs |> 
+  select(estimator, t = term, estimate, std.error) |>
+  mutate(
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    t = as.numeric(t)
+  )
+
+coef_m4_cs |> filter(t >= -5 & t <= 10) |>
+  ggplot(aes(x=t, y = estimate)) +
+  geom_point(aes(x = t, y = estimate), size = 1) +
+  geom_linerange(aes(x = t, ymin = conf.low, ymax = conf.high), linewidth = 0.75) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth = .25, alpha = 0.75) + 
+  geom_vline(xintercept = -0.5, linetype = "dashed", linewidth = .25) +
+  theme_bw() + theme(legend.position= 'bottom') +
+  labs(y="ATT", x = "Relative Time") + 
+  guides(col = guide_legend(nrow = 3))
 
 
 

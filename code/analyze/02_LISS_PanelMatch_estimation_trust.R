@@ -104,7 +104,8 @@ treatments <-
     "unemployed",
     "income_cat_decrease",
     "income_cat_2p_decrease",
-    "income_hh_25p_decrease"
+    "income_hh_25p_decrease",
+    "employed"
   )
 
 outcomes <- c(
@@ -118,7 +119,8 @@ covariates <-
     "education_cat",
     "partner",
     "no_children_hh",
-    "l1_net_monthly_income_cat"
+    "l1_net_monthly_income_cat",
+    "house_owner"
   )
 
 ## Specify paths -----------------------------------------------------------
@@ -195,6 +197,7 @@ for (treatment in treatments) {
     message(paste("Running analysis for treatment:", treatment, " and outcome:", outcome))
     results <- run_panelmatch(data, treatment, outcome, covariates, lag = lag, lead = lead, figure_path = figure_path, dataframes_path = dataframes_path)
     # Save dataframes
+    overall_results_df <- results$overall_results_df
     results_df <- results$results_df
     covariate_balance_df <- results$covariate_balance_df
   }
@@ -202,6 +205,7 @@ for (treatment in treatments) {
 
 
 # Write
+fwrite(overall_results_df, file = paste0(dataframes_path,"panelmatch_overall_results.csv"))
 fwrite(results_df, file = paste0(dataframes_path,"panelmatch_results.csv"))
 fwrite(covariate_balance_df, file = paste0(dataframes_path,"panelmatch_covariate_balance_df.csv"))
 
