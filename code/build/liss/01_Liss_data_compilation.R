@@ -230,22 +230,53 @@ df6 |>
 
 ### Worked well!
 
+
 # Transform variables -----------------------------------------------------
 
 df6 <- df6 |>
   mutate(
     age_sq = age^2,
     # unemployed_broad: job seeker following job loss, first time job seeker, exempted from job seeking following job loss, takes care of the housekeeping
-    unemployed_broad = ifelse(occupation == 4 | occupation == 5 | occupation == 6 | occupation == 8 | occupation == 11,1,0),
+    unemployed_broad = case_when(
+      occupation %in% c(4, 5, 6, 8, 11) ~ 1,
+      !(occupation %in% c(4, 5, 6, 8, 11)) & !is.na(occupation) ~ 0,
+      TRUE ~ NA_real_
+    ),
     # job seeker following job loss, exempted from job seeking following job loss
-    unemployed = ifelse(occupation == 4 | occupation == 6,1,0),
-    student = ifelse(occupation == 7,1,0),
-    retired = ifelse(occupation == 9,1,0),
-    employed = ifelse(occupation < 4,1,0),
+    unemployed = case_when(
+      occupation %in% c(4, 6) ~ 1,
+      !(occupation %in% c(4, 6)) & !is.na(occupation) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    student = case_when(
+      occupation == 7 ~ 1,
+      occupation != 7 & !is.na(occupation) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    retired = case_when(
+      occupation == 9 ~ 1,
+      occupation != 9 & !is.na(occupation) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    employed = case_when(
+      occupation %in% c(1, 2, 3, 10) ~ 1,
+      !(occupation %in% c(1, 2, 3, 10)) & !is.na(occupation) ~ 0,
+      TRUE ~ NA_real_
+    ),
     male = ifelse(gender==1,1,0),
-    house_owner = ifelse(dwelling_type == 1,1,0),
-    renter = ifelse(dwelling_type ==2 | dwelling_type==3, 1, 0),
-    net_monthly_income_cat = ifelse(net_monthly_income_cat == 13 | net_monthly_income_cat == 14, NA, net_monthly_income_cat)
+    house_owner = case_when(
+      dwelling_type == 1 ~ 1,
+      dwelling_type != 1 & !is.na(dwelling_type) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    renter = case_when(
+      dwelling_type %in% c(2, 3) ~ 1,
+      !(dwelling_type %in% c(2, 3)) & !is.na(dwelling_type) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    net_monthly_income_cat = ifelse(net_monthly_income_cat == 13 | net_monthly_income_cat == 14, NA, net_monthly_income_cat),
+    # calculate net monthly income + 1 to avoid 0 when calculating percentage changes
+    net_monthly_income_cat = net_monthly_income_cat + 1,
   ) |>
   # Change variables
   group_by(nomem_encr) |>
@@ -253,24 +284,116 @@ df6 <- df6 |>
   mutate(
     # treatments
     delta_unemployed = unemployed - lag(unemployed),
-    unemployment_shock = ifelse(delta_unemployed == 1, 1, 0), 
+    unemployment_shock = case_when(
+      delta_unemployed == 1 ~ 1,
+      delta_unemployed <= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
     delta_income_cat = net_monthly_income_cat - lag(net_monthly_income_cat),
-    income_cat_decrease = ifelse(delta_income_cat < 0, 1, 0),
-    income_cat_2p_decrease = ifelse(delta_income_cat < -1, 1, 0),
+    income_cat_decrease = case_when(
+      delta_income_cat < 0 ~ 1,
+      delta_income_cat >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_cat_2p_decrease = case_when(
+      delta_income_cat < -1 ~ 1,
+      delta_income_cat >= -1 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    # relative income cat decrease
+    delta_income_cat_rel = delta_income_cat / lag(net_monthly_income_cat),
+    income_cat_rel_decrease_10p = case_when(
+      delta_income_cat_rel < -0.1 ~ 1,
+      delta_income_cat_rel >= -0.1 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_cat_rel_decrease_20p = case_when(
+      delta_income_cat_rel < -0.2 ~ 1,
+      delta_income_cat_rel >= -0.2 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_cat_rel_decrease_50p = case_when(
+      delta_income_cat_rel < -0.5 ~ 1,
+      delta_income_cat_rel >= -0.5 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    # above mean: > 0.3
+    income_cat_rel_decrease_mean = case_when(
+      delta_income_cat_rel < -0.3 ~ 1,
+      delta_income_cat_rel >= -0.3 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    # above median: > 0.24
+    income_cat_rel_decrease_median = case_when(
+      delta_income_cat_rel < -0.25 ~ 1,
+      delta_income_cat_rel >= -0.25 ~ 0,
+      TRUE ~ NA_real_
+    ),
     delta_income_hh = net_monthly_income_hh - lag(net_monthly_income_hh),
-    income_hh_decrease = ifelse(delta_income_hh < 0, 1, 0),
-    income_hh_25p_decrease = ifelse(income_hh_decrease == 1 & (abs(delta_income_hh) / lag(net_monthly_income_hh) > .25), 1, 0),
+    delta_income_hh_rel = delta_income_hh / lag(net_monthly_income_hh),
+    income_hh_decrease = case_when(
+      delta_income_hh < 0 ~ 1,
+      delta_income_hh >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_hh_25p_decrease = case_when(
+      income_hh_decrease == 1 & (abs(delta_income_hh) / lag(net_monthly_income_hh) > .25) ~ 1,
+      income_hh_decrease == 1 & (abs(delta_income_hh) / lag(net_monthly_income_hh) <= .25) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    # above mean: > .2
+    income_hh_rel_decrease_mean = case_when(
+      delta_income_hh_rel < -0.2 ~ 1,
+      delta_income_hh_rel >= -0.2 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    # above median: > .1
+    income_hh_rel_decrease_median = case_when(
+      delta_income_hh_rel < -0.1 ~ 1,
+      delta_income_hh_rel >= -0.1 ~ 0,
+      TRUE ~ NA_real_
+    ),
     delta_income = net_monthly_income - lag(net_monthly_income),
-    income_decrease = ifelse(delta_income < 0, 1, 0),
-    income_25p_decrease = ifelse(income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .25), 1, 0),
+    income_decrease = case_when(
+      delta_income < 0 ~ 1,
+      delta_income >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_10p_decrease = case_when(
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .10) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .10) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_25p_decrease = case_when(
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .25) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .25) ~ 0,
+      TRUE ~ NA_real_
+    ),
+    income_50p_decrease = case_when(
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .50) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .50) ~ 0,
+      TRUE ~ NA_real_
+    ),
     # perceived
     delta_fin_sit_better = fin_sit_better - lag(fin_sit_better),
-    fin_sit_better_decrease = ifelse(delta_fin_sit_better < 0, 1, 0),
+    fin_sit_better_decrease = case_when(
+      delta_fin_sit_better < 0 ~ 1,
+      delta_fin_sit_better >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
     delta_easy_live_inc = easy_live_inc - lag(easy_live_inc),
-    easy_live_inc_decrease = ifelse(delta_easy_live_inc < 0, 1, 0),
+    easy_live_inc_decrease = case_when(
+      delta_easy_live_inc < 0 ~ 1,
+      delta_easy_live_inc >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
     delta_confr_trouble_ends_meet = confr_trouble_ends_meet - lag(confr_trouble_ends_meet),
     delta_hh_fin_sat = hh_fin_sat - lag(hh_fin_sat),
-    hh_fin_sat_decrease = ifelse(delta_hh_fin_sat < 0, 1, 0),
+    hh_fin_sat_decrease = case_when(
+      delta_hh_fin_sat < 0 ~ 1,
+      delta_hh_fin_sat >= 0 ~ 0,
+      TRUE ~ NA_real_
+    ),
     # outcomes
     delta_partisan_affect = partisan_affect - lag(partisan_affect),
     delta_spread = spread - lag(spread),
@@ -279,20 +402,41 @@ df6 <- df6 |>
     # controls
     l1_net_monthly_income_cat = lag(net_monthly_income_cat)
   ) |>
-  arrange(nomem_encr, wave)
+  ungroup() |>
+  arrange(nomem_encr, wave) 
 
 # # inspect
-# delta_unemployed <- df |> select(nomem_encr, wave, unemployed, delta_unemployed, unemployment_shock)
-# delta_income_cat <- df |> select(nomem_encr, wave, net_monthly_income_cat, delta_income_cat,
-#                                  income_cat_decrease, income_cat_2p_decrease)
-# delta_income_hh <- df |> select(nomem_encr, wave, net_monthly_income_hh, delta_income_hh,
-#                                 income_hh_decrease, income_hh_25p_decrease)
-# delta_income <- df |> select(nomem_encr, wave, net_monthly_income, delta_income,
-#                              income_decrease, income_25p_decrease)
+delta_unemployed <- df6 |> select(nomem_encr, wave, unemployed, delta_unemployed, unemployment_shock)
+delta_income_cat <- df6 |> select(nomem_encr, wave, net_monthly_income_cat, delta_income_cat,
+                                 income_cat_decrease, income_cat_2p_decrease)
+delta_income_cat_rel <- df6 |> 
+  group_by(nomem_encr) |>
+  arrange(nomem_encr, wave) |>
+  mutate(net_monthly_income_cat_l1 = lag(net_monthly_income_cat)) |>
+  ungroup() |>
+  select(
+    nomem_encr,
+    wave,
+    net_monthly_income_cat,
+    delta_income_cat,
+    net_monthly_income_cat_l1,
+    delta_income_cat_rel,
+    net_monthly_income_cat_l1,
+    income_cat_rel_decrease_10p,
+    income_cat_rel_decrease_50p
+)
 
+# delta_income_hh <- df6 |> select(nomem_encr, wave, net_monthly_income_hh, delta_income_hh,
+#                                 income_hh_decrease, income_hh_25p_decrease)
+# delta_income <- df6 |> select(nomem_encr, wave, net_monthly_income, delta_income,
+#                              income_decrease, income_25p_decrease)
+table(is.na(df6$net_monthly_income))
+table(is.na(df6$net_monthly_income_cat))
+
+glimpse(df6)
 
 # Select necessary variables
-df6 <- df6 |>
+df7 <- df6 |>
   select(nomem_encr, wave,
          # outcomes
          partisan_affect, delta_partisan_affect, spread, delta_spread, distance, like_max, like_min,
@@ -311,18 +455,48 @@ df6 <- df6 |>
          # treatments
          unemployed, delta_unemployed, unemployment_shock,
          net_monthly_income_cat, delta_income_cat, income_cat_decrease, income_cat_2p_decrease,
-         net_monthly_income_hh, delta_income_hh, income_hh_decrease, income_hh_25p_decrease,
-         net_monthly_income, delta_income, income_decrease, income_25p_decrease,
+         net_monthly_income_hh, delta_income_hh, income_hh_decrease, 
+            income_hh_25p_decrease, income_hh_rel_decrease_mean, income_hh_rel_decrease_median,
+         net_monthly_income, delta_income, 
+            income_decrease, income_10p_decrease, income_25p_decrease, income_50p_decrease,
+         delta_income_cat_rel, income_cat_rel_decrease_10p, income_cat_rel_decrease_20p,
+            income_cat_rel_decrease_50p, income_cat_rel_decrease_mean, income_cat_rel_decrease_median,
+         
          fin_sit_better, delta_fin_sit_better, fin_sit_better_decrease,
          easy_live_inc, delta_easy_live_inc, easy_live_inc_decrease,
          confr_trouble_ends_meet, delta_confr_trouble_ends_meet,
          hh_fin_sat, delta_hh_fin_sat, hh_fin_sat_decrease,
          # controls
          age, age_cat, education_cat, student, retired, employed, no_children_hh, partner,
-         l1_net_monthly_income_cat, male, house_owner
+         l1_net_monthly_income_cat, male, house_owner, occupation
   )
 
 # Write
-fwrite(df6, file = "~/Documents/GitHub/insecure_polarization/data/liss.csv")
+fwrite(df7, file = "~/Documents/GitHub/insecure_polarization/data/liss.csv")
+
+
+
+
+# Inspect  ----------------------------------------------------------------
+
+pacman::p_load(dlookr)
+# Inspect income: mean & median
+df6 |> ungroup() |>
+  diagnose_numeric(delta_income_cat,  delta_income_cat_rel, delta_income_hh, delta_income)
+
+# among those for which deltas are negative
+df6 |> ungroup() |>
+  filter(income_cat_decrease == 1) |>
+  diagnose_numeric(delta_income_cat,  delta_income_cat_rel)
+# delta_income_cat: mean = -1.5, median = -1
+# delta_income_cat_rel: mean = -0.3, median = -0.25
+
+# among those for which deltas are negative
+df6 |> ungroup() |>
+  filter(income_hh_decrease == 1) |>
+  diagnose_numeric(delta_income_hh_rel)
+# delta_income_hh: mean = -0.19, median = -0.11
+
+
 
 ### END

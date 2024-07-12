@@ -68,9 +68,7 @@ pvars <- c(
 
 fr_did_adjusted <- feols(
   .[pvars] ~  i(t, unemployed, ref = 2015)+ 
-    age_cat + male + education_cat
-  partner + no_children_hh +
-    l1_net_monthly_income_cat + house_owner | id + t,
+    age + education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat | id + t,
   df,
   cluster = ~id
 )

@@ -1,4 +1,4 @@
-### # Heddesheimer, Sairam, Bryson - Replication code - Month XX, 2023
+### # Heddesheimer, Bryson - Replication code - Month XX, 2024
 # vincent.heddesheimer@princeton.edu
 #
 # Tables reproduced in this file:
@@ -242,7 +242,7 @@ m2_fe <- feols(spread ~ unemployment_shock
                | nomem_encr + wave,
                cluster = "nomem_encr",
                data = df)
-summary(m1_fe)
+summary(m2_fe)
 
 ### Callaway Sant'Anna ------------------------------------------------------
 
