@@ -1,4 +1,4 @@
-### # Heddesheimer, Bryson - Replication code - Month XX, 2024
+### # Heddesheimer, Bryson - Replication code - March 20, 2025
 # vincent.heddesheimer@princeton.edu
 #
 # Tables reproduced in this file:
@@ -10,10 +10,14 @@
 rm(list = ls())
 
 # Load packages
-pacman::p_load(tidyverse, data.table, did2s, haschaR, modelsummary)
+pacman::p_load(tidyverse, data.table, did, haschaR, modelsummary, HonestDiD)
 
 # Load LISS data
 df <- fread("data/liss.csv")
+
+# source honestdid function for Callaway Sant'Anaa
+source("code/analyze/honestdid_cs.R")
+source("code/analyze/cs_event_study.R")
 
 # Remove duplicates -------------------------------------------------------
 
@@ -116,19 +120,15 @@ df1 |>
   select(all_of(pvars)) |>
   datasummary_skim()
 
+# wo controls -------------------------------------------------------------
 
-# # Define a function to perform event study analysis for a single variable
-# perform_event_study <- function(data, yname, idname, tname, gname, estimator, pvar) {
-#   event_study(
-#     data = data, yname = pvar, idname = idname,
-#     tname = tname, gname = gname,
-#     estimator = estimator
-#   ) %>%
-#     mutate(dv = pvar)
-# }
-# 
+# # Run DiD analysis
 # # Initialize an empty list to store the results
 # event_study_results <- list()
+# 
+# # specify input
+# post_treatment_periods <- 0:8
+# Mbarvec <- c(0.5, 1)
 # 
 # # Loop over each variable in pvars
 # for (pvar in pvars) {
@@ -139,10 +139,11 @@ df1 |>
 #     idname = "id",
 #     tname = "t",
 #     gname = "first_treatment_period",
-#     estimator = "all",
-#     pvar = pvar
+#     # xformla = ~ education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner,
+#     run_sensitivity = TRUE,
+#     post_treatment_periods = post_treatment_periods,
+#     Mbarvec = Mbarvec
 #   )
-#   
 #   # Append the result to the list
 #   event_study_results[[pvar]] <- result
 # }
@@ -150,203 +151,25 @@ df1 |>
 # # Combine the results into a single data frame
 # combined_results <- bind_rows(event_study_results)
 # 
-# # save 
-# fwrite(combined_results, "~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
+# # save
+# fwrite(combined_results, "~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_CS.csv")
 
-combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
 
-# polarization
+# load
+combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_CS.csv")
+
+# Define the desired order of facet labels with sample size placeholders
+desired_order <- c(
+  "Distance \\(N=",
+  "Spread \\(N=",
+  "Like Min \\(N=",
+  "Like Max \\(N=",
+  "Generalized Trust \\(N=",
+  "Outgroup Distance \\(N="
+)
+
+# Plot
 combined_results |>
-  filter(dv %in% c("partisan_affect", "spread", "distance", "like_max", "like_min")) |>
-  filter(term >= -5 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  facet_wrap(~ dv + estimator, scales = "free") +
-  theme_hanno() +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank()
-  ) +
-  labs(
-    title = "Event Study Analysis",
-    x = "Time (in months)",
-    y = "Effect size",
-    color = "Estimator"
-  ) +
-  # x axis from -5 to 5
-  scale_x_continuous(breaks = seq(-5, 8, 1))
-
-# outgroup
-combined_results |>
-  filter(dv %in% c("red_overall_mean_distance", "red_distance_age_rel_mean",
-                   "red_distance_education_rel_mean", "red_distance_gender_mean",
-                   "red_distance_ethnicity_rel_mean")) |>
-  filter(term >= -5 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  facet_wrap(~ dv + estimator, scales = "free") +
-  theme_hanno() +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank()
-  ) +
-  labs(
-    title = "Event Study Analysis",
-    x = "Time (in months)",
-    y = "Effect size",
-    color = "Estimator"
-  ) +
-  # x axis from -5 to 5
-  scale_x_continuous(breaks = seq(-5, 8, 1))
-
-
-## use only callaway sant anna ---------------------------------------------
-
-combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
-
-
-# polarization results
-combined_results |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
-  filter(dv %in% c("spread", "distance")) |>
-  mutate(dv = ifelse(dv == "spread", "Spread", "Distance")) |>
-  filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  # set color to black and darkgrey
-  scale_color_manual(values = c("black", "darkgrey")) +
-  theme_hanno() +
-  theme(legend.position = "none") +
-  labs(
-    x = "Time relative to treatment",
-    y = "ATT",
-    color = "Polarization Measure"
-  ) +
-  # x axis from -5 to 8
-  scale_x_continuous(breaks = seq(-5, 8, 1)) +
-  facet_wrap(~ dv, scales = "free")
-
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/polarization_wo_controls.pdf", width = 7, height = 4)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_polar_wo_controls.pdf", width = 7, height = 4)
-
-
-# like min max results
-combined_results |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
-  filter(dv %in% c("like_min", "like_max")) |>
-  mutate(dv = ifelse(dv == "like_min", "Like Min", "Like Max")) |>
-  filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  # set color to black and darkgrey
-  scale_color_manual(values = c("black", "darkgrey")) +
-  theme_hanno() +
-  theme(legend.position = "none") +
-  labs(
-    x = "Time relative to treatment",
-    y = "ATT",
-    color = "Like Measure"
-  ) +
-  # x axis from -5 to 8
-  scale_x_continuous(breaks = seq(-5, 8, 1)) +
-  facet_wrap(~ dv, scales = "fixed")
-
-
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/min_max_wo_controls.pdf", width = 7, height = 4)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_min_max_wo_controls.pdf", width = 7, height = 4)
-
-
-# outgroup and trust
-combined_results |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
-  filter(dv %in% c("red_overall_mean_distance", "generalized_trust")) |>
-  filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  mutate(
-    dv = ifelse(dv == "red_overall_mean_distance", "Outgroup Distance", "Generalized Trust")
-  ) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  # set color to black and darkgrey
-  scale_color_manual(values = c("black", "darkgrey")) +
-  theme_hanno() +
-  theme(legend.position = "none") +
-  labs(
-    x = "Time relative to treatment",
-    y = "ATT",
-    color = "DV"
-  ) +
-  # x axis from -5 to 8
-  scale_x_continuous(breaks = seq(-5, 8, 1)) +
-  facet_wrap(~ dv, scales = "free")
-
-
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/outgroupaversion_wo_controls.pdf", width = 7, height = 4)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_avers_wo_controls.pdf", width = 7, height = 4)
-
-
-
-## Partisan affect ---------------------------------------------------------
-
-combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
-
-# outgroup and trust
-combined_results |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
-  filter(dv %in% c("partisan_affect")) |>
-  filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  mutate(
-    dv = case_when(
-      dv == "partisan_affect" ~ "Partisan Affect",
-    )
-  ) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  # set color to black and darkgrey
-  scale_color_manual(values = c("black", "darkgrey")) +
-  theme_hanno() +
-  theme(legend.position = "none") +
-  labs(
-    x = "Time relative to treatment",
-    y = "ATT",
-    color = "DV"
-  ) +
-  # x axis from -5 to 8
-  scale_x_continuous(breaks = seq(-5, 8, 1)) +
-  facet_wrap(~ dv, scales = "free")
-
-
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/partisan_wo_controls.pdf", width = 7, height = 4)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/partisan_wo_controls.pdf", width = 7, height = 4)
-
-
-
-# polarization results
-combined_results |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
@@ -356,55 +179,12 @@ combined_results |>
              dv == "like_max" ~ "Like Max",
              dv == "red_overall_mean_distance" ~ "Outgroup Distance",
              dv == "generalized_trust" ~ "Generalized Trust"
-           )) |>     
-  # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+           )) |>  
+  mutate(dv = paste0(dv, " (N=", n, ")")) |>
+  # Order the facets based on the desired order
+  mutate(dv = factor(dv, levels = sapply(desired_order, function(x) grep(x, dv, value = TRUE)[1]))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
-  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
-  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
-  # set color to black and darkgrey
-  scale_color_manual(values = c("black", "darkgrey")) +
-  theme_hanno() +
-  theme(legend.position = "none") +
-  labs(
-    x = "Time relative to treatment",
-    y = "ATT",
-    color = "Polarization Measure"
-  ) +
-  # x axis from -5 to 8
-  scale_x_continuous(breaks = seq(-5, 8, 1)) +
-  facet_wrap(~ dv, scales = "free", ncol = 2)
-
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all.pdf", width = 7, height = 7)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all.pdf", width = 7, height = 7)
-
-
-
-## TWFE --------------------------------------------------------------------
-
-# polarization results
-combined_results |>
-  filter(estimator %in% c("TWFE")) |>
-  filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
-  mutate(dv = 
-           case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
-             dv == "generalized_trust" ~ "Generalized Trust"
-           )) |>     
-  # bind data.frame for t = -1 for all dv that takes 0 for estimate and std.error
-  bind_rows(data.frame(dv = c("Spread", "Distance", "Like Min", "Like Max", "Outgroup Distance", "Generalized Trust"), term = -1, estimate = 0, std.error = 0, estimator = "TWFE")) |>
-  # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
-  filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
+  ggplot(aes(x = term, y = estimate)) +
   geom_vline(xintercept = -1, linetype = "dashed") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
@@ -423,59 +203,60 @@ combined_results |>
   scale_x_continuous(breaks = seq(-5, 8, 1)) +
   facet_wrap(~ dv, scales = "free", ncol = 2)
 
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_twfe.pdf", width = 7, height = 7)
-ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_twfe.pdf", width = 7, height = 7)
-
-
-
-
-# With controls -----------------------------------------------------------
-
-
-# Define a function to perform event study analysis for a single variable
-perform_event_study <- function(data, yname, idname, tname, gname, estimator, pvar) {
-  event_study(
-    data = data, yname = pvar, idname = idname,
-    tname = tname, gname = gname,
-    estimator = estimator,
-    xformla = ~ education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner
-  ) %>%
-    mutate(dv = pvar)
-}
-
-# Initialize an empty list to store the results
-event_study_results <- list()
-
-# Loop over each variable in pvars
-for (pvar in pvars) {
-  # Perform event study analysis for the current variable
-  result <- perform_event_study(
-    data = df1,
-    yname = pvar,
-    idname = "id",
-    tname = "t",
-    gname = "first_treatment_period",
-    estimator = "did",
-    pvar = pvar
-  )
-
-  # Append the result to the list
-  event_study_results[[pvar]] <- result
-}
-
-# Combine the results into a single data frame
-combined_results_c <- bind_rows(event_study_results)
-
 # save
-fwrite(combined_results_c, "~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results_controls.csv")
+ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_all.pdf", width = 7, height = 7)
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all.pdf", width = 7, height = 7)
 
 
-# fread
-combined_results_c <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results_controls.csv")
+# with controls -----------------------------------------------------------
 
-# polarization results
+# # Run DiD analysis
+# # Initialize an empty list to store the results
+# event_study_results <- list()
+# 
+# # specify input
+# post_treatment_periods <- 0:8
+# Mbarvec <- c(0.5, 1)
+# 
+# # Loop over each variable in pvars
+# for (pvar in pvars) {
+#   # Perform event study analysis for the current variable
+#   result <- perform_event_study(
+#     data = df1,
+#     yname = pvar,
+#     idname = "id",
+#     tname = "t",
+#     gname = "first_treatment_period",
+#     xformla = ~ education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner,
+#     run_sensitivity = TRUE,
+#     post_treatment_periods = post_treatment_periods,
+#     Mbarvec = Mbarvec
+#   )
+#   # Append the result to the list
+#   event_study_results[[pvar]] <- result
+# }
+# 
+# # Combine the results into a single data frame
+# combined_results_c <- bind_rows(event_study_results)
+# 
+# # save
+# fwrite(combined_results_c, "~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_CS_wcontrols.csv")
+
+# load
+combined_results_c <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_CS_wcontrols.csv")
+
+# Define the desired order of facet labels with sample size placeholders
+desired_order <- c(
+  "Distance \\(N=",
+  "Spread \\(N=",
+  "Like Min \\(N=",
+  "Like Max \\(N=",
+  "Generalized Trust \\(N=",
+  "Outgroup Distance \\(N="
+)
+
+# Plot
 combined_results_c |>
-  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
@@ -485,12 +266,13 @@ combined_results_c |>
              dv == "like_max" ~ "Like Max",
              dv == "red_overall_mean_distance" ~ "Outgroup Distance",
              dv == "generalized_trust" ~ "Generalized Trust"
-           )) |>     
-  # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+           )) |>  
+  mutate(dv = paste0(dv, " (N=", n, ")")) |>
+  # Order the facets based on the desired order
+  mutate(dv = factor(dv, levels = sapply(desired_order, function(x) grep(x, dv, value = TRUE)[1]))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
-  ggplot(aes(x = term, y = estimate, color = estimator)) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  ggplot(aes(x = term, y = estimate)) +
+  geom_vline(xintercept = -1, linetype = "dashed") +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
   geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
@@ -508,9 +290,11 @@ combined_results_c |>
   scale_x_continuous(breaks = seq(-5, 8, 1)) +
   facet_wrap(~ dv, scales = "free", ncol = 2)
 
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_controls.pdf", width = 7, height = 7)
+# save
+ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_09_12/unemp_all_controls.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_controls.pdf", width = 7, height = 7)
 
 
 
 
+### END

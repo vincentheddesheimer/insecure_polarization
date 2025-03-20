@@ -1,17 +1,20 @@
 ### LISS data compilation
 
+# no scientific notation
+options(scipen = 999)
+
 rm(list=ls())
 
 # Load packages
 pacman::p_load(tidyverse, data.table, scales)
 
 # Set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
+# setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
 
 # Load data
-df <- fread("liss_combined.csv")
+df <- fread("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/liss_combined.csv")
 
-
+names(df)
 
 # Create outgroup-aversion measures ---------------------------------------
 
@@ -329,6 +332,13 @@ df6 <- df6 |>
       delta_income_cat_rel >= -0.25 ~ 0,
       TRUE ~ NA_real_
     ),
+    # above median unemployed: > 0.167
+    income_cat_rel_decrease_median_unemp = case_when(
+      delta_income_cat_rel < -0.15 ~ 1,
+      delta_income_cat_rel >= -0.15 ~ 0,
+      TRUE ~ NA_real_
+    ),
+    net_monthly_income_hh = net_monthly_income_hh + 1,
     delta_income_hh = net_monthly_income_hh - lag(net_monthly_income_hh),
     delta_income_hh_rel = delta_income_hh / lag(net_monthly_income_hh),
     income_hh_decrease = case_when(
@@ -426,8 +436,20 @@ delta_income_cat_rel <- df6 |>
     income_cat_rel_decrease_50p
 )
 
-# delta_income_hh <- df6 |> select(nomem_encr, wave, net_monthly_income_hh, delta_income_hh,
-#                                 income_hh_decrease, income_hh_25p_decrease)
+delta_income_hh_rel <- df6 |> 
+  group_by(nomem_encr) |>
+  arrange(nomem_encr, wave) |>
+  mutate(net_monthly_income_hh_l1 = lag(net_monthly_income_hh)) |>
+  ungroup() |>
+  select(
+    nomem_encr,
+    wave,
+    net_monthly_income_hh,
+    net_monthly_income_hh_l1,
+    delta_income_hh,
+    delta_income_hh_rel
+  )
+
 # delta_income <- df6 |> select(nomem_encr, wave, net_monthly_income, delta_income,
 #                              income_decrease, income_25p_decrease)
 table(is.na(df6$net_monthly_income))
@@ -461,13 +483,14 @@ df7 <- df6 |>
             income_decrease, income_10p_decrease, income_25p_decrease, income_50p_decrease,
          delta_income_cat_rel, income_cat_rel_decrease_10p, income_cat_rel_decrease_20p,
             income_cat_rel_decrease_50p, income_cat_rel_decrease_mean, income_cat_rel_decrease_median,
+            income_cat_rel_decrease_median_unemp,
          
          fin_sit_better, delta_fin_sit_better, fin_sit_better_decrease,
          easy_live_inc, delta_easy_live_inc, easy_live_inc_decrease,
          confr_trouble_ends_meet, delta_confr_trouble_ends_meet,
          hh_fin_sat, delta_hh_fin_sat, hh_fin_sat_decrease,
          # controls
-         age, age_cat, education_cat, student, retired, employed, no_children_hh, partner,
+         age, age_cat, education_cat, student, retired, employed, no_children_hh, no_hh, partner,
          l1_net_monthly_income_cat, male, house_owner, occupation
   )
 
@@ -475,14 +498,21 @@ df7 <- df6 |>
 fwrite(df7, file = "~/Documents/GitHub/insecure_polarization/data/liss.csv")
 
 
-
+names(df7)
 
 # Inspect  ----------------------------------------------------------------
 
+
+
+
 pacman::p_load(dlookr)
+
+names(df6)
+
 # Inspect income: mean & median
 df6 |> ungroup() |>
-  diagnose_numeric(delta_income_cat,  delta_income_cat_rel, delta_income_hh, delta_income)
+  diagnose_numeric(delta_income_cat,  delta_income_cat_rel, delta_income_hh_rel, delta_income, net_monthly_income_hh)
+
 
 # among those for which deltas are negative
 df6 |> ungroup() |>
@@ -497,6 +527,33 @@ df6 |> ungroup() |>
   diagnose_numeric(delta_income_hh_rel)
 # delta_income_hh: mean = -0.19, median = -0.11
 
+# calculate hh income loss among those who lose their jobs
+inspect <- df6 |> ungroup() |>
+  filter(unemployment_shock == 1) |>
+  select(nomem_encr, wave, unemployed, delta_income_cat, delta_income_cat_rel, delta_income_hh_rel)
+
+# calculate mean and median household income drops for just the male job loss and the female job loss
+df6 |> ungroup() |>
+  filter(unemployment_shock == 1) |>
+  group_by(male) |>
+  diagnose_numeric(delta_income_hh)
+
+# Female: mean = -318, median = -250
+# Male: mean = -455, median = -340
+# Overall: mean = 385, median = -290
+
+# hh income: mean = 3222, median = 2851
+
+# as percent of hh income
+# Female: mean = -10%, median = -9%
+# Male: mean = -14%, median = -12%
+# Overall: mean = -12%, median = -10%
+
+
+# calculate summary stats for income drops among those who lose their jobs
+df6 |> ungroup() |>
+  filter(unemployment_shock == 1) |>
+  diagnose_numeric(delta_income_cat,  delta_income_cat_rel, delta_income_hh_rel, delta_income, delta_income_hh)
 
 
 ### END
