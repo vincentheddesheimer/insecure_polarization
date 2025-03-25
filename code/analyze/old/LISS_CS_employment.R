@@ -413,5 +413,67 @@ ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Pola
 
 
 
+# Time to re-employment analysis ----------------------------------------
 
+glimpse(df1)
+
+# Calculate time to re-employment for treated individuals
+reemployment_time <- df1 |>
+  filter(treat == 1) |>
+  group_by(id) |>
+  summarise(
+    time_to_reemploy = sum(time_to_treatment <= 0), # counts periods until re-employment
+    male = first(male)
+  )
+
+# Overall mean time to re-employment
+mean_time <- mean(reemployment_time$time_to_reemploy, na.rm = TRUE)
+
+# By gender
+gender_means <- reemployment_time |>
+  group_by(male) |>
+  summarise(
+    mean_time = mean(time_to_reemploy, na.rm = TRUE),
+    sd_time = sd(time_to_reemploy, na.rm = TRUE),
+    n = n()
+  )
+
+
+# T-test for gender difference
+t_test_result <- t.test(time_to_reemploy ~ male, data = reemployment_time)
+
+
+# Income recovery analysis ---------------------------------------------
+
+names(df1)
+
+income_change <- df1 |>
+  filter(treat == 1) |>
+  group_by(id) |>
+  summarise(
+    pre_personal_income = first(na.omit(net_monthly_income_cat[time_to_treatment == -1])),
+    post_personal_income = first(na.omit(net_monthly_income_cat[time_to_treatment == 1])),
+    pre_hh_income = first(na.omit(net_monthly_income_hh[time_to_treatment == -1])),
+    post_hh_income = first(na.omit(net_monthly_income_hh[time_to_treatment == 1])),
+    male = first(male)
+  ) |>
+  mutate(
+    personal_income_change = post_personal_income - pre_personal_income,
+    hh_income_change = post_hh_income - pre_hh_income
+  )
+
+
+# Income changes by gender
+income_gender <- income_change |>
+  group_by(male) |>
+  summarise(
+    mean_personal_change = mean(personal_income_change, na.rm = TRUE),
+    mean_hh_change = mean(hh_income_change, na.rm = TRUE),
+    n = n()
+  )
+
+
+
+t.test(personal_income_change ~ male, data = income_change)
+t.test(hh_income_change ~ male, data = income_change)
 
