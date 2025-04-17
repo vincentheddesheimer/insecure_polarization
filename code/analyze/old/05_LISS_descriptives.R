@@ -64,13 +64,13 @@ df2 <- df |>
     `Partisan affect` = partisan_affect,
     `Spread` = spread,
     `Distance` = distance,
-    `Most liked` = like_max,
-    `Least liked` = like_min,
-    `Peer Group Distance` = red_overall_mean_distance,
-    `Peer Group Age Distance` = red_distance_age_rel_mean,
-    `Peer Group Education Distance` = red_distance_education_rel_mean,
-    `Peer Group Gender Distance` = red_distance_gender_mean,
-    `Peer Group Origin Distance` = red_distance_ethnicity_rel_mean,
+    `Ingroup affinity` = like_max,
+    `Outgroup aversion` = like_min,
+    `Heterophily (close social ties)` = red_overall_mean_distance,
+    `Age heterophily (close social ties)` = red_distance_age_rel_mean,
+    `Education heterophily (close social ties)` = red_distance_education_rel_mean,
+    `Gender heterophily (close social ties)` = red_distance_gender_mean,
+    `Ethnicity heterophily (close social ties)` = red_distance_ethnicity_rel_mean,
     `Generalized trust` = generalized_trust,
     `Age (categorical)` = age_cat,
     Male = male,
@@ -225,6 +225,11 @@ df |>
 # 2.59 people per household on average
 
 names(df)
+
+
+df |> filter(income_cat_rel_decrease_median == 1) |> group_by(male) |> count()
+
+df |> filter(income_hh_rel_decrease_median == 1) |> group_by(male) |> count()
 
 
 # END

@@ -141,15 +141,15 @@ combined_results |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
              dv == "generalized_trust" ~ "Generalized Trust"
            )) |>     
   # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
   ggplot(aes(x = term, y = estimate, color = estimator)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
@@ -172,7 +172,7 @@ combined_results |>
 
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_wo_controls_men.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_wo_controls_men.pdf", width = 7, height = 7)
-
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_wo_controls_men.pdf", width = 7, height = 7)
 
 
 ## With controls -----------------------------------------------------------
@@ -226,15 +226,15 @@ combined_results_c |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
              dv == "generalized_trust" ~ "Generalized Trust"
            )) |>     
   # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
   ggplot(aes(x = term, y = estimate, color = estimator)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
@@ -257,7 +257,7 @@ combined_results_c |>
 
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_controls_men.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_controls_men.pdf", width = 7, height = 7)
-
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_controls_men.pdf", width = 7, height = 7)
 
 
 
@@ -308,15 +308,15 @@ combined_results |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
              dv == "generalized_trust" ~ "Generalized Trust"
            )) |>     
   # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
   ggplot(aes(x = term, y = estimate, color = estimator)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
@@ -339,7 +339,7 @@ combined_results |>
 
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
-
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
 
 
 ## With controls -----------------------------------------------------------
@@ -393,15 +393,15 @@ combined_results_c |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
              dv == "generalized_trust" ~ "Generalized Trust"
            )) |>     
   # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
   ggplot(aes(x = term, y = estimate, color = estimator)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
@@ -424,7 +424,7 @@ combined_results_c |>
 
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_controls_women.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_controls_women.pdf", width = 7, height = 7)
-
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_controls_women.pdf", width = 7, height = 7)
 
 
 # Get into the same plot and dodge & color by gender --------------------------------
@@ -447,15 +447,15 @@ filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
   filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
   mutate(dv = 
            case_when(
-             dv == "spread" ~ "Spread",
-             dv == "distance" ~ "Distance",
-             dv == "like_min" ~ "Like Min",
-             dv == "like_max" ~ "Like Max",
-             dv == "red_overall_mean_distance" ~ "Outgroup Distance",
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
              dv == "generalized_trust" ~ "Generalized Trust"
            )) |>     
   # reorder
-  mutate(dv = factor(dv, levels = c("Distance", "Spread", "Like Min", "Like Max", "Generalized Trust", "Outgroup Distance"))) |>
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
   filter(term >= -3 & term <= 8 & !is.na(term)) |>
   ggplot(aes(x = term, y = estimate, color = gender, shape = gender)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
@@ -481,6 +481,6 @@ filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
 
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_wo_controls_gender.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_wo_controls_gender.pdf", width = 7, height = 7)
-
+ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_wo_controls_gender.pdf", width = 7, height = 7)
 
 
