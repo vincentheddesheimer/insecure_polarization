@@ -465,7 +465,7 @@ filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
   geom_point(position = position_dodge(0.6), fill = "white", size = 2) +
   # set color to black and darkgrey
   #scale_color_manual(values = c("darkgrey", "black")) +
-  scale_color_brewer(palette = "Dark2") +
+  scale_color_viridis_d(begin = 0, end = 0.7) +
   scale_shape_manual(values = c(21, 24)) +
   theme_hanno() +
   theme(legend.position = "bottom") +
