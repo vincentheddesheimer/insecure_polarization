@@ -40,9 +40,17 @@ The code is organized in the following structure:
 
 ```
 code/
-└── build/
-    └── liss/
-        └── 01_Liss_data_compilation.R  # Data processing and variable construction
+├── build/
+│   └── liss/
+│       └── 01_Liss_data_compilation.R  # Data processing and variable construction
+└── analyze/
+    ├── 01_descriptives.R               # Descriptive statistics and data exploration
+    ├── 02_unemployment_all.R           # Main unemployment analysis
+    ├── 02b_unemployment_gender.R       # Gender-specific unemployment effects
+    ├── 02c_unemployment.R              # Additional unemployment analyses
+    ├── 03_employment.R                 # Employment status analysis
+    ├── 04_hh_income_loss.R             # Household income loss analysis
+    └── 05_income_loss.R                # Personal income loss analysis
 ```
 
 ### Data Processing
@@ -61,6 +69,32 @@ The main data processing script (`01_Liss_data_compilation.R`) performs the foll
 4. Calculates various distance metrics for social ties
 5. Handles missing data and creates analysis-ready datasets
 
+### Analysis
+
+The analysis scripts perform the following analyses:
+
+1. **Descriptive Statistics** (`01_descriptives.R`):
+   - Summary statistics for all key variables
+   - Missing data analysis
+   - Basic data exploration
+
+2. **Unemployment Analysis** (`02_unemployment_all.R`, `02b_unemployment_gender.R`, `02c_unemployment.R`):
+   - Event study analysis of unemployment effects
+   - Gender-specific effects of unemployment
+   - Heterogeneity analysis by demographic characteristics
+   - Robustness checks and alternative specifications
+
+3. **Employment Analysis** (`03_employment.R`):
+   - Analysis of employment status changes
+   - Reemployment effects
+   - Employment stability analysis
+
+4. **Income Loss Analysis** (`04_hh_income_loss.R`, `05_income_loss.R`):
+   - Household income loss effects
+   - Personal income loss effects
+   - Income volatility analysis
+   - Comparison of different income loss thresholds
+
 ## Requirements
 
 The analysis requires the following R packages:
@@ -68,18 +102,24 @@ The analysis requires the following R packages:
 - data.table
 - scales
 - dlookr
+- did2s
+- haschaR
+- modelsummary
+- kableExtra
 
 ## Usage
 
 1. Place the LISS data file (`liss_combined.csv`) in the appropriate directory
 2. Run the data compilation script to process the data
-3. The processed data will be saved as `liss.csv` in the data directory
+3. Run the analysis scripts in sequence to reproduce the results
+4. The processed data will be saved as `liss.csv` in the data directory
 
 ## Notes
 
 - The LISS data is not included in this repository due to data access restrictions
 - Users need to obtain the data directly from the LISS panel survey
 - The code assumes specific file paths that may need to be adjusted based on local setup
+- Analysis scripts should be run in sequence as they build upon each other
 
 ## References
 
