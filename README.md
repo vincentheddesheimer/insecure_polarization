@@ -85,39 +85,6 @@ print(paste("Dataset loaded successfully with", nrow(df), "observations"))
 
 **Typical Install Time**: 15-30 minutes on a standard desktop computer (depending on internet speed and system performance).
 
-## Demo
-
-### Demo Dataset
-The final processed dataset (`liss.csv`) is included in the `data/` directory for demonstration purposes. This dataset contains the processed LISS panel survey data with all variables constructed and ready for analysis.
-
-### Running the Demo
-
-1. **Descriptive Statistics Demo**:
-```r
-# Set working directory to repository root
-setwd("path/to/insecure_polarization")
-
-# Run descriptive statistics
-source("code/analyze/01_descriptives.R")
-```
-
-2. **Main Analysis Demo**:
-```r
-# Run main unemployment analysis
-source("code/analyze/02_unemployment_all.R")
-```
-
-### Expected Output
-The demo will generate:
-- Summary statistics table (saved as `results/tables/summary_table_manual.tex`)
-- Unemployment analysis results with event study plots
-- Console output showing key statistics and model results
-
-### Expected Run Time
-- **Descriptive analysis**: 1-2 minutes
-- **Main analysis**: 3-5 minutes
-- **Total demo time**: 4-7 minutes on a standard desktop computer
-
 ## Instructions for Use
 
 ### Step 1: Prepare Your Data
