@@ -88,10 +88,10 @@ print(paste("Dataset loaded successfully with", nrow(df), "observations"))
 ## Instructions for Use
 
 ### Step 1: Prepare Your Data
-1. Obtain the LISS panel survey data from [https://www.lissdata.nl/](https://www.lissdata.nl/)
+1. Obtain the LISS panel survey data from [https://www.lissdata.nl/](https://www.lissdata.nl/).
 2. Run the files in `code/build/liss/clean/' to clean the raw data.
-2. This will result in the combined raw data file (`liss_combined.csv`) in the `data/raw/` directory.
-3. Ensure the data file contains all required variables (see Data section below)
+2. Place the resulting combined raw data file (`liss_combined.csv`) in the `data/raw/` directory.
+3. Ensure the data file contains all required variables (see Data section below).
 
 ### Step 2: Data Processing
 ```r
