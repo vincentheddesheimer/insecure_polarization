@@ -120,8 +120,8 @@ df1 |>
 # (Claude code)
 
 # results in up to 16.7k dv observations getting dropped
-# 807 units survive for spread/distance etc. (~700 control, ~100 treated),
-# only 139 for homophily (114 control, 24 treated)
+# 809 units survive for spread/distance etc. (~700 control, ~100 treated),
+# only 145 for homophily (122 control, 23 treated)
 
 balance_report <- function(data, y, covars = NULL,
                            idname = "id", tname = "t",
@@ -523,8 +523,8 @@ for (v in fvars) {
   message("\n=== ", v, " ===")
   cs_fits[v] <- list(tryCatch(
     cs_unbalanced(df1, v,
-                  xformla = NULL, # controls here, paste from below
-                  balance_e = 8), # this drops groups not exposed to treatment for at least x+1 periods (e = 0 + ... + e = x)
+                  xformla = NULL, # controls here, paste from below if desired
+                  balance_e = NULL), # this drops groups not exposed to treatment for at least x+1 periods (e = 0 + ... + e = x)
     # ~ education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner
     error = function(e) {
       message("  FAILED: ", conditionMessage(e))
@@ -561,6 +561,7 @@ cs_results |>
   ggplot(aes(x = term, y = estimate, color = estimator)) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   geom_hline(yintercept = 0, linetype = "dashed") +
+  # 1.96 may be replaced by crit.val to use simultaneous confidence bands for 95%
   geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
   geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
   geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
@@ -577,9 +578,7 @@ cs_results |>
   scale_x_continuous(breaks = seq(-5, 8, 1)) +
   facet_wrap(~ dv, scales = "free", ncol = 2)
 
-ggsave("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/unemp_all_to26_unbal_e_8.pdf", width = 7, height = 7)
-
-
+ggsave("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/unemp_all_to26_unbal.pdf", width = 7, height = 7)
 
 
 # With controls -----------------------------------------------------------

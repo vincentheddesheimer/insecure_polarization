@@ -54,7 +54,7 @@ df <- df_list[[6]] |>
   #                             ifelse(!is.na(date_h),
   #                                    date_h,
   #                                    date_i)))) |>
-  mutate(date = coalesce(date, date_p, date_s, date_i, date_h, date_a)) |>
+  mutate(date = dplyr::coalesce(date, date_p, date_s, date_i, date_h, date_a)) |>
   # merge with background 
   left_join(df_list[[2]] |>
               select(-c(year,month)),# |>
@@ -62,6 +62,6 @@ df <- df_list[[6]] |>
             by = c("nomem_encr", "date"))
 
 # write as .csv
-fwrite(df, "liss_combined_to26_2.csv")
+fwrite(df, "liss_combined_to26.csv")
 
 ### END
