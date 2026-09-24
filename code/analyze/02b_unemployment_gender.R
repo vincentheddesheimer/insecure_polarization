@@ -13,7 +13,7 @@ rm(list = ls())
 pacman::p_load(tidyverse, data.table, did2s, haschaR, modelsummary)
 
 # Load LISS data
-df <- fread("data/liss.csv")
+df <- fread("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/liss_to26.csv")
 
 # Remove duplicates -------------------------------------------------------
 
@@ -340,6 +340,118 @@ combined_results |>
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_wo_controls_women.pdf", width = 7, height = 7)
+
+
+# Unbalanced Callaway-Sant'Anna estimation for both ----------------
+# Claude, checked manually
+
+fvars <- c("spread", "distance", "like_min", "like_max",
+           "red_overall_mean_distance", "generalized_trust")
+
+cs_unbalanced <- function(data, yname,
+                          idname = "id", tname = "t",
+                          gname = "first_treatment_period",
+                          xformla = NULL,
+                          unbalanced = TRUE,
+                          base_period = "varying",
+                          balance_e = NULL,
+                          na.rm = TRUE) {
+  
+  att <- did::att_gt(
+    yname = yname, tname = tname, idname = idname, gname = gname,
+    xformla = xformla, data = as.data.frame(data),
+    control_group          = "nevertreated",
+    base_period            = base_period,
+    allow_unbalanced_panel = unbalanced,
+    est_method             = "dr"
+  )
+  
+  agg <- did::aggte(att, type = "dynamic",
+                    balance_e = balance_e, na.rm = na.rm)
+  
+  list(
+    tidy = data.frame(term      = agg$egt,
+                      estimate  = agg$att.egt,
+                      std.error = agg$se.egt,
+                      crit.val  = agg$crit.val.egt,
+                      estimator = "Callaway and Sant'Anna (2020)",
+                      dv        = yname),
+    att      = att,
+    agg      = agg,
+    n_units  = att$n,
+    na_cells = sum(is.na(att$att))
+  )
+}
+
+groups <- c(men = 1, women = 0)
+
+cs_fits_g <- list()
+for (g in names(groups)) {
+  dg <- df1[!is.na(df1$male) & df1$male == groups[[g]], , drop = FALSE]
+  for (v in fvars) {
+    key <- paste(g, v, sep = "_")
+    message("=== ", key, " ===")
+    cs_fits_g[key] <- list(tryCatch(
+      cs_unbalanced(dg, v, 
+                    xformla = NULL,
+                    balance_e = NULL),
+      error = function(e) { message("  FAILED: ", conditionMessage(e)); NULL }))
+  }
+}
+
+do.call(rbind, lapply(names(cs_fits_g), function(v) {
+  f <- cs_fits_g[[v]]
+  data.frame(dv       = v,
+             ok       = !is.null(f),
+             n_units  = if (is.null(f)) NA_integer_ else f$n_units,
+             na_cells = if (is.null(f)) NA_integer_ else f$na_cells)
+}))
+
+cs_results_g <- do.call(rbind, lapply(names(cs_fits_g), function(k) {
+  f <- cs_fits_g[[k]]
+  if (is.null(f)) return(NULL)
+  cbind(f$tidy, group = sub("_.*", "", k))
+}))
+
+cs_results_g |>
+  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
+  filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
+  mutate(dv = 
+           case_when(
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
+             dv == "generalized_trust" ~ "Generalized Trust"
+           )) |>     
+  # reorder
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
+  filter(term >= -3 & term <= 8 & !is.na(term)) |>
+  ggplot(aes(x = term, y = estimate, color = group, shape = group)) +
+  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.6)) +
+  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.6)) +
+  geom_point(position = position_dodge(0.6), fill = "white", size = 2) +
+  # set color to black and darkgrey
+  #scale_color_manual(values = c("darkgrey", "black")) +
+  scale_color_viridis_d(begin = 0, end = 0.7) +
+  scale_shape_manual(values = c(21, 24)) +
+  theme_hanno() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Time relative to treatment",
+    y = "ATT",
+    color = "Gender",
+    shape = "Gender"
+  ) +
+  # x axis from -5 to 8
+  scale_x_continuous(breaks = seq(-5, 8, 1)) +
+  facet_wrap(~ dv, scales = "free", ncol = 2)
+
+ggsave("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/unemp_all_to26_unbal_gender2.pdf", width = 7, height = 7)
+
 
 
 ## With controls -----------------------------------------------------------

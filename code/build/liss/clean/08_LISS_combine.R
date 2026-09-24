@@ -6,11 +6,14 @@ rm(list=ls())
 pacman::p_load(data.table, tidyverse)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
+setwd("C:/Datasets/LISS/cleaned")
 
 # read data sets: all .csv files
 file.names <- list.files(pattern = "*.csv") 
-file.names <- file.names[! file.names %in% c("liss_combined.csv")]
+file.names <- file.names[! file.names %in% c("liss_combined.csv", 
+                                             "liss_combined_new.csv",
+                                             "liss_combined_new_vs.csv",
+                                             "liss_combined_to26.csv")]
 df_list <- lapply(file.names, fread)
 
 # merge
@@ -41,22 +44,24 @@ df <- df_list[[6]] |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_i = date),
             by = c("nomem_encr", "wave")) |>
-  mutate(date = na_if(date, "NA01"),
-         date = na_if(date, "NA02"),
-         date = ifelse(!is.na(date),
-                       date,
-                       ifelse(!is.na(date_a),
-                              date_a,
-                              ifelse(!is.na(date_h),
-                                     date_h,
-                                     date_i)))) |>
+  # mutate(
+  #   # date = na_if(date, "NA01"),
+  #   # date = na_if(date, "NA02"),
+  #        date = ifelse(!is.na(date),
+  #                      date,
+  #                      ifelse(!is.na(date_a),
+  #                             date_a,
+  #                             ifelse(!is.na(date_h),
+  #                                    date_h,
+  #                                    date_i)))) |>
+  mutate(date = coalesce(date, date_p, date_s, date_i, date_h, date_a)) |>
   # merge with background 
   left_join(df_list[[2]] |>
-              select(-c(year,month)) |>
-              mutate(date = as.character(date)),
+              select(-c(year,month)),# |>
+              # mutate(date = as.character(date)),
             by = c("nomem_encr", "date"))
 
 # write as .csv
-fwrite(df, "liss_combined.csv")
+fwrite(df, "liss_combined_to26_2.csv")
 
 ### END

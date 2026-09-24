@@ -11,11 +11,16 @@ library(furrr)
 library(lubridate)
 
 
+
+
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/assets/")
+setwd("C:/Datasets/LISS/assets")
+
+getwd()
+future_map_chr(1:2, ~ getwd())
 
 # read .dta files 
 ass <- 
@@ -156,7 +161,7 @@ ass <-
 
 
 # write .csv file
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(ass, file = "liss_assets.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(ass, file = "liss_assets_to26.csv")
 
 ### END

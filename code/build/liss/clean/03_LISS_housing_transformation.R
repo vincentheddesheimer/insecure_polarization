@@ -12,10 +12,10 @@ library(lubridate)
 
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/housing/")
+setwd("C:/Datasets/LISS/housing")
 
 # read .dta files 
 house <- 
@@ -170,7 +170,7 @@ house <-
 
 
 # write .csv file
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(house, file = "liss_housing.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(house, file = "liss_housing_to26.csv")
 
 ### End

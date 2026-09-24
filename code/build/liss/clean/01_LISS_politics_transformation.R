@@ -6,13 +6,13 @@ rm(list=ls())
 pacman::p_load(data.table, tidyverse, readstata13, furrr)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/politics/")
+setwd("C:/Datasets/LISS/politics")
 
 
 # read .dta files  --------------------------------------------------------
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 pol <- 
   # list all .dta files in directory
@@ -31,7 +31,7 @@ pol <-
   future_map(~if(!("maandnr" %in% names(.x))) .x else .x |> mutate(month = lubridate::month(lubridate::ym(maandnr)))) |>
   future_map(~if(!("m1" %in% names(.x))) .x else .x |> mutate(year = lubridate::year(lubridate::ym(m1)))) |>
   future_map(~if(!("m1" %in% names(.x))) .x else .x |> mutate(month = lubridate::month(lubridate::ym(m1)))) |>
-  future_map(~if(!("m2" %in% names(.x))) .x else .x |> mutate(year2 = lubridate::year(lubridate::ym(m3)))) |>
+  future_map(~if(!("m2" %in% names(.x))) .x else .x |> mutate(year2 = lubridate::year(lubridate::ym(m2)))) |>
   future_map(~if(!("m2" %in% names(.x))) .x else .x |> mutate(month2 = lubridate::month(lubridate::ym(m2)))) |>
   future_map(~if(!("m3" %in% names(.x))) .x else .x |> mutate(year3 = lubridate::year(lubridate::ym(m3)))) |>
   future_map(~if(!("m3" %in% names(.x))) .x else .x |> mutate(month3 = lubridate::month(lubridate::ym(m3)))) |>
@@ -115,7 +115,19 @@ pol <-
                        `202212` = "23",
                        `202301` = "23",
                        `202302` = "23",
-                       `202303` = "23")) |>
+                       `202303` = "23",
+                       `202312` = "24",
+                       `202401` = "24",
+                       `202402` = "24",
+                       `202403` = "24",
+                       `202412` = "25",
+                       `202501` = "25",
+                       `202502` = "25",
+                       `202503` = "25",
+                       `202512` = "26",
+                       `202601` = "26",
+                       `202602` = "26",
+                       `202603` = "26")) |>
 # Rename ------------------------------------------------------------------
   # select & rename
   select(
@@ -276,6 +288,9 @@ pol <-
     thermo_BBB = `327`,
     thermo_BIJ1 = `328`,
     thermo_VNL = `265`,
+    # new thermos from wave 24
+    thermo_NSC       = `343`,
+    thermo_GL_PvdA    = `342`,
     # Politicians
     thermo_Balkenende = `087`,
     thermo_Bos = `088`,
@@ -396,6 +411,7 @@ pol <-
     children_duty = `136`,
     children_atease = `137`,
     children_nothappy = `138`,
+    
     work_duty = `139`,
     work_hard = `140`,
     work_happy = `141`,
@@ -560,6 +576,16 @@ pol <-
                                      thermo_Azarkan_21,
                                      NA))
          ) |>
+  # # split the joint list GL-PvdA into constituent parties and duplicate thermo
+  # # ratings
+  # mutate(thermo_GL   = ifelse(!is.na(thermo_GL_PvdA), 
+  #                             thermo_GL_PvdA, 
+  #                             thermo_GL),
+  #        
+  #        thermo_PvdA = ifelse(!is.na(thermo_GL_PvdA), 
+  #                             thermo_GL_PvdA, 
+  #                             thermo_PvdA)
+  # ) |>
   # delete unnecessary variables
   select(-c(thermo_VVD_08:thermo_GL_22,
             thermo_PvdD_08:thermo_CU_22,
@@ -590,7 +616,7 @@ pol <-
                                          (party_last_parl_elect_Mar2017 == 3 & !is.na(party_last_parl_elect_Nov2006)),
                                        1,0),
     # PvdA (labor party)
-    party_last_parl_elect_pvdA = ifelse((party_last_parl_elect_Nov2006 == 2 & !is.na(party_last_parl_elect_Nov2006)) |
+    party_last_parl_elect_PvdA = ifelse((party_last_parl_elect_Nov2006 == 2 & !is.na(party_last_parl_elect_Nov2006)) |
                                          (party_last_parl_elect_Jun2010 ==  2 & !is.na(party_last_parl_elect_Jun2010)) |
                                          (party_last_parl_elect_Sep2012 ==  2 & !is.na(party_last_parl_elect_Sep2012)) |
                                          (party_last_parl_elect_Mar2017 == 7 & !is.na(party_last_parl_elect_Mar2017)),
@@ -673,7 +699,7 @@ pol <-
                                          (party_last_prov_elect_Mar2011 == 5 & !is.na(party_last_prov_elect_Mar2011)),
                                        1,0),
     # PvdA (labor party)
-    party_last_prov_elect_pvdA = ifelse((party_last_prov_elect_Mar2007 == 4 & !is.na(party_last_prov_elect_Mar2007)) |
+    party_last_prov_elect_PvdA = ifelse((party_last_prov_elect_Mar2007 == 4 & !is.na(party_last_prov_elect_Mar2007)) |
                                           (party_last_prov_elect_Mar2011 == 4 & !is.na(party_last_prov_elect_Mar2011)),
                                         1,0),
     # VVD (liberal party)
@@ -719,7 +745,7 @@ pol <-
                                (elect_today_party_18 == 4 & !is.na(elect_today_party_18)),
                              1,0),
     # PvdA (labor party)
-    vote_today_pvdA = ifelse((elect_today_party_08 == 4 & !is.na(elect_today_party_08))|
+    vote_today_PvdA = ifelse((elect_today_party_08 == 4 & !is.na(elect_today_party_08))|
                                (elect_today_party_11 == 4 & !is.na(elect_today_party_11))|
                                (elect_today_party_13 == 4 & !is.na(elect_today_party_13))|
                                (elect_today_party_17 == 3 & !is.na(elect_today_party_17))|
@@ -815,8 +841,8 @@ pol <-
                             (partisan_party_13 == 5 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 3 & !is.na(partisan_party_18)),
                           1,0),
-    # PvdA (labor party)
-    partisan_pvdA =  ifelse((partisan_party_12 == 2 & !is.na(partisan_party_12))|
+    # PvdA (labor party) -> extended to include answers for joint list
+    partisan_PvdA =  ifelse((partisan_party_12 == 2 & !is.na(partisan_party_12))|
                               (partisan_party_13 == 2 & !is.na(partisan_party_13))|
                               (partisan_party_18 == 7 & !is.na(partisan_party_18)),
                             1,0),
@@ -830,7 +856,7 @@ pol <-
                             (partisan_party_13 == 4 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 6 & !is.na(partisan_party_18)),
                           1,0),
-    # GroenLinks (green party)
+    # GroenLinks (green party) -> extended to include answers for joint list
     partisan_GL =  ifelse((partisan_party_12 == 7 & !is.na(partisan_party_12))|
                             (partisan_party_13 == 8 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 5 & !is.na(partisan_party_18)),
@@ -876,6 +902,10 @@ pol <-
     partisan_BBB = ifelse(partisan_party_18 == 17,1,0),
     # BIJ1
     partisan_BIJ1 = ifelse(partisan_party_18 == 18,1,0),
+    # NSC (New Social Contract) -> only 24 & 25
+    partisan_NSC  = ifelse(partisan_party_18 == 20,1,0),
+    # GroenLinks & PvdA joint list (24-26)
+    partisan_GL_PvdA = ifelse(partisan_party_18 == 19,1,0),    
     # other party
     partisan_other = ifelse((partisan_party_12 == 12 & !is.na(partisan_party_12))|
                               (partisan_party_13 == 12 & !is.na(partisan_party_13))|
@@ -887,8 +917,8 @@ pol <-
                                     (party_attraction_party_13 == 5 & !is.na(party_attraction_party_13))|
                                     (party_attraction_party_18 == 3 & !is.na(party_attraction_party_18)),
                                   1,0),
-    # PvdA (labor party)
-    party_attraction_pvdA = ifelse((party_attraction_party_12 == 2 & !is.na(party_attraction_party_12))|
+    # PvdA (labor party) -> extended to include joint list
+    party_attraction_PvdA = ifelse((party_attraction_party_12 == 2 & !is.na(party_attraction_party_12))|
                                      (party_attraction_party_13 == 2 & !is.na(party_attraction_party_13))|
                                      (party_attraction_party_18 == 7 & !is.na(party_attraction_party_18)),
                                    1,0),
@@ -902,7 +932,7 @@ pol <-
                                    (party_attraction_party_13 == 4 & !is.na(party_attraction_party_13))|
                                    (party_attraction_party_18 == 6 & !is.na(party_attraction_party_18)),
                                  1,0),
-    # GroenLinks (green party)
+    # GroenLinks (green party) -> extended to include joint list
     party_attraction_GL = ifelse((party_attraction_party_12 == 7 & !is.na(party_attraction_party_12))|
                                    (party_attraction_party_13 == 8 & !is.na(party_attraction_party_13))|
                                    (party_attraction_party_18 == 5 & !is.na(party_attraction_party_18)),
@@ -933,7 +963,7 @@ pol <-
                                      (party_attraction_party_18 == 9 & !is.na(party_attraction_party_18)),
                                    1,0),
     # 50Plus (fifty plus party)
-    party_attraction_50PLUS = ifelse((party_attraction_party_13 == 10 & !is.na(party_attraction_party_13))|
+    party_attraction_50PLUS = ifelse((party_attraction_party_13 == 11 & !is.na(party_attraction_party_13))|
                                        (party_attraction_party_18 == 10 & !is.na(party_attraction_party_18)),
                                      1,0),
     # DENK
@@ -948,6 +978,10 @@ pol <-
     party_attraction_BBB = ifelse(party_attraction_party_18 == 17,1,0),
     # BIJ1
     party_attraction_BIJ1 = ifelse(party_attraction_party_18 == 18,1,0),
+    # NSC (New Social Contract) -> only waves 24 and 25
+    party_attraction_NSC = ifelse(party_attraction_party_18 == 20,1,0),
+    # GroenLinks & PvdA joint list (24-26)
+    party_attraction_GL_PvdA = ifelse(party_attraction_party_18 == 19,1,0),
     # other party
     party_attraction_other = ifelse((party_attraction_party_12 == 11 & !is.na(party_attraction_party_12))|
                                       (party_attraction_party_13 == 12 & !is.na(party_attraction_party_13))|
@@ -961,10 +995,10 @@ pol <-
                                 (party_member_party_18 == 3 & !is.na(party_member_party_18)),
                               1,0),
     # PvdA (labor party)
-    party_member_pvdA = ifelse((party_member_party_08 == 2 & !is.na(party_member_party_08))|
+    party_member_PvdA = ifelse((party_member_party_08 == 2 & !is.na(party_member_party_08))|
                                  (party_member_party_11 == 2 & !is.na(party_member_party_11))|
                                  (party_member_party_13 == 2 & !is.na(party_member_party_13))|
-                                 (party_member_party_18 == 7 & !is.na(party_member_party_18)),
+                                 (party_member_party_18 %in% c(7, 22) & !is.na(party_member_party_18)),
                                1,0),
     # VVD (liberal party)
     party_member_VVD = ifelse((party_member_party_08 == 3 & !is.na(party_member_party_08))|
@@ -982,7 +1016,7 @@ pol <-
     party_member_GL = ifelse((party_member_party_08 == 5 & !is.na(party_member_party_08))|
                                (party_member_party_11 == 7 & !is.na(party_member_party_11))|
                                (party_member_party_13 == 8 & !is.na(party_member_party_13))|
-                               (party_member_party_18 == 5 & !is.na(party_member_party_18)),
+                               (party_member_party_18 %in% c(5, 21) & !is.na(party_member_party_18)),
                              1,0),
     # Lijst vijf Fortuyn \ LPF (Fortuyn party)
     party_member_LPF = ifelse(party_member_party_08 == 6,1,0),
@@ -1032,6 +1066,10 @@ pol <-
     party_member_BBB = ifelse(party_member_party_18 == 17,1,0),
     # BIJ1
     party_member_BIJ1 = ifelse(party_member_party_18 == 18,1,0),
+    # NSC (New Social Contract) -> only waves 24 and 25
+    party_member_NSC = ifelse(party_member_party_18 == 20,1,0),
+    # GroenLinks & PvdA joint list (24)
+    party_member_GL_PvdA = ifelse(party_member_party_18 == 19,1,0),
     # other party
     party_member_other = ifelse((party_member_party_08 == 13 & !is.na(party_member_party_08))|
                                   (party_member_party_11 == 11 & !is.na(party_member_party_11))|
@@ -1066,7 +1104,7 @@ vote_parl_rightwing = ifelse((party_last_parl_elect_PVV == 1 & !is.na(party_last
                                (party_last_parl_elect_JA21 == 1 & !is.na(party_last_parl_elect_JA21)),
                              1,0),
 # Social democratic
-vote_parl_socdemoc = ifelse((party_last_parl_elect_pvdA == 1 & !is.na(party_last_parl_elect_pvdA)) |
+vote_parl_socdemoc = ifelse((party_last_parl_elect_PvdA == 1 & !is.na(party_last_parl_elect_PvdA)) |
                               (party_last_parl_elect_DENK == 1 & !is.na(party_last_parl_elect_DENK)),
                             1,0),
 # Special issue
@@ -1090,7 +1128,7 @@ vote_prov_liberal = ifelse((party_last_prov_elect_VVD == 1 & !is.na(party_last_p
                              (party_last_prov_elect_D66 == 1 & !is.na(party_last_prov_elect_D66)),
                            1,0),
 # Social democratic
-vote_prov_socdemoc = ifelse(party_last_prov_elect_pvdA == 1,1,0),
+vote_prov_socdemoc = ifelse(party_last_prov_elect_PvdA == 1,1,0),
 # Special issue
 vote_prov_specissue = ifelse((party_last_prov_elect_PvdD == 1 & !is.na(party_last_prov_elect_PvdD)) |
                                (party_last_prov_elect_50PLUS == 1 & !is.na(party_last_prov_elect_50PLUS)),
@@ -1120,7 +1158,7 @@ vote_today_rightwing = ifelse((vote_today_PVV == 1 & !is.na(vote_today_PVV)) |
                                (vote_today_JA21 == 1 & !is.na(vote_today_JA21)),
                              1,0),
 # Social democratic
-vote_today_socdemoc = ifelse((vote_today_pvdA == 1 & !is.na(vote_today_pvdA)) |
+vote_today_socdemoc = ifelse((vote_today_PvdA == 1 & !is.na(vote_today_PvdA)) |
                               (vote_today_DENK == 1 & !is.na(vote_today_DENK)),
                             1,0),
 # Special issue
@@ -1154,7 +1192,7 @@ partisan_rightwing = ifelse((partisan_PVV == 1 & !is.na(partisan_PVV)) |
                                 (partisan_JA21 == 1 & !is.na(partisan_JA21)),
                               1,0),
 # Social democratic
-partisan_socdemoc = ifelse((partisan_pvdA == 1 & !is.na(partisan_pvdA)) |
+partisan_socdemoc = ifelse((partisan_PvdA == 1 & !is.na(partisan_PvdA)) |
                                (partisan_DENK == 1 & !is.na(partisan_DENK)),
                              1,0),
 # Special issue
@@ -1187,7 +1225,7 @@ party_attraction_rightwing = ifelse((party_attraction_PVV == 1 & !is.na(party_at
                                 (party_attraction_JA21 == 1 & !is.na(party_attraction_JA21)),
                               1,0),
 # Social democratic
-party_attraction_socdemoc = ifelse((party_attraction_pvdA == 1 & !is.na(party_attraction_pvdA)) |
+party_attraction_socdemoc = ifelse((party_attraction_PvdA == 1 & !is.na(party_attraction_PvdA)) |
                                (party_attraction_DENK == 1 & !is.na(party_attraction_DENK)),
                              1,0),
 # Special issue
@@ -1220,7 +1258,7 @@ party_member_rightwing = ifelse((party_member_PVV == 1 & !is.na(party_member_PVV
                                 (party_member_JA21 == 1 & !is.na(party_member_JA21)),
                               1,0),
 # Social democratic
-party_member_socdemoc = ifelse((party_member_pvdA == 1 & !is.na(party_member_pvdA)) |
+party_member_socdemoc = ifelse((party_member_PvdA == 1 & !is.na(party_member_PvdA)) |
                                (party_member_DENK == 1 & !is.na(party_member_DENK)),
                              1,0),
 # Special issue
@@ -1246,7 +1284,7 @@ party_member_specissue = ifelse((party_member_PvdD == 1 & !is.na(party_member_Pv
 # get thermo score for each individual - wave - party observation
 thermo <- pol |>
   pivot_longer(
-    cols = thermo_VVD:thermo_VNL,
+    cols = thermo_VVD:thermo_GL_PvdA,
     names_to = "party",
     names_prefix = "thermo_",
     values_to = "thermo_score"
@@ -1279,7 +1317,7 @@ thermo <- thermo |>
 partisan <- pol |>
   select(-partisan) |>
   pivot_longer(
-    cols = partisan_CDA:partisan_BIJ1,
+    cols = partisan_CDA:partisan_GL_PvdA,
     names_to = "party",
     names_prefix = "partisan_",
     values_to = "partisan"
@@ -1303,7 +1341,7 @@ partisan <- partisan |>
 party_attraction <- pol |>
   select(-party_attraction) |>
   pivot_longer(
-    cols = party_attraction_CDA:party_attraction_BIJ1,
+    cols = party_attraction_CDA:party_attraction_GL_PvdA,
     names_to = "party",
     names_prefix = "party_attraction_",
     values_to = "party_attraction"
@@ -1336,22 +1374,29 @@ df <- df |>
 
 
 ## Vote share data ---------------------------------------------------------
-vs2006 <- readxl::read_excel("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/election_results/2006_11.xlsx") |>
+vs2006 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2006_11") |>
   mutate(election_year = 2006)
-vs2010 <- readxl::read_excel("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/election_results/2010_06.xlsx") |>
+vs2010 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2010_06") |>
   mutate(election_year = 2010)
-vs2012 <- readxl::read_excel("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/election_results/2012_09.xlsx") |>
+vs2012 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2012_09") |>
   mutate(election_year = 2012)
-vs2017 <- readxl::read_excel("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/election_results/2017_03.xlsx") |>
+vs2017 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2017_03") |>
   mutate(election_year = 2017)
+# added (MH):
+vs2021 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2021_03") |>
+  mutate(election_year = 2021)
+vs2023 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2023_11") |>
+  mutate(election_year = 2023)
+# 2025 not available yet from nlverkiezingen.com, but we can use another source
 
 # combine
-vs <- bind_rows(vs2006, vs2010, vs2012, vs2017) |>
+vs <- bind_rows(vs2006, vs2010, vs2012, vs2017, vs2021, vs2023) |>
   mutate(
     # mutate party abbreviations for merging
     party = ifelse(party == "GrLinks", "GL", party),
     party = ifelse(party == "DBB", "BBB", party),
-    party = ifelse(party == "DPK", "TON", party)
+    party = ifelse(party == "DPK", "TON", party),
+    party = ifelse(party == "GL/PvdA", "GL_PvdA", party)
   ) |>
   select(party, election_year, share)
 
@@ -1363,48 +1408,62 @@ df <- df |>
                                        2010,
                                        ifelse(wave >= 12 & wave < 17,
                                               2012,
-                                              2017)))) |>
+                                              ifelse(wave >= 17 & wave < 21,
+                                                     2017,
+                                                     ifelse(wave >= 21 & wave < 24,
+                                                            2021,
+                                                            2023)))))) |>
   left_join(vs, by = c("party", "election_year"))
 
 # Calculate share of voters for Volt and JA21 (since 2018)
-volt <- pol |>
-  select(nomem_encr,wave,vote_today_Volt) |>
-  filter(!is.na(vote_today_Volt)) |>
-  group_by(wave) |>
-  summarize(share = mean(vote_today_Volt, na.rm = TRUE)) |>
-  filter(!is.na(wave)) |>
-  mutate(party = "Volt")
+# MH: Unnecessary since there are now vote shares available 21 and 23
 
-ja21 <- pol |>
-  select(nomem_encr,wave,vote_today_JA21) |>
-  filter(!is.na(vote_today_JA21)) |>
-  group_by(wave) |>
-  summarize(share = mean(vote_today_JA21, na.rm = TRUE)) |>
-  filter(!is.na(wave)) |>
-  mutate(party = "JA21")
-
-volt_ja21 <- volt |> bind_rows(ja21)
-
-# merge volt & ja21 with df
-df <- df |>
-  left_join(volt_ja21, by = c("party", "wave")) |>
-  mutate(share = ifelse(!is.na(share.y), share.y, share.x)) |>
-  select(-c(share.y,share.x))
+# volt <- pol |>
+#   select(nomem_encr,wave,vote_today_Volt) |>
+#   filter(!is.na(vote_today_Volt)) |>
+#   group_by(wave) |>
+#   summarize(share = mean(vote_today_Volt, na.rm = TRUE)) |>
+#   filter(!is.na(wave)) |>
+#   mutate(party = "Volt")
+# 
+# ja21 <- pol |>
+#   select(nomem_encr,wave,vote_today_JA21) |>
+#   filter(!is.na(vote_today_JA21)) |>
+#   group_by(wave) |>
+#   summarize(share = mean(vote_today_JA21, na.rm = TRUE)) |>
+#   filter(!is.na(wave)) |>
+#   mutate(party = "JA21")
+# 
+# volt_ja21 <- volt |> bind_rows(ja21)
+# 
+# # merge volt & ja21 with df
+# df <- df |>
+#   left_join(volt_ja21, by = c("party", "wave")) |>
+#   mutate(share = ifelse(!is.na(share.y), share.y, share.x)) |>
+#   select(-c(share.y,share.x))
 
 
 # ingroup scores
+# MH: added in-party signifier to possibly look for party-specific dynamics later
+
 ingroup <- df |>
   filter(partisan_comb == 1) |>
-  # sometimes people are partisans of more than one party: select highest score
   group_by(nomem_encr, wave) |>
   filter(thermo_score == max(thermo_score, na.rm = TRUE)) |>
-  mutate(ingroup_share = sum(share, na.rm = TRUE)) |>
+  mutate(
+    ingroup_share  = sum(share, na.rm = TRUE),
+    ingroup_party  = paste(sort(unique(party)), collapse = "|"),
+    ingroup_n_tied = n_distinct(party)
+  ) |>
   ungroup() |>
   select(
     nomem_encr, wave,
+    ingroup_party, ingroup_n_tied,
     ingroup_score = thermo_score,
     ingroup_share) |>
   distinct()
+# Claude end (MH)
+
 # ingroup |> janitor::get_dupes(nomem_encr, wave)
 
 # merge to df
@@ -1418,8 +1477,6 @@ df <- df |>
     weighted_distance_to_ingroup_score = distance_to_ingroup_score * share / (1-ingroup_share)
     )
 
-
-
 ## Partisan affect score ---------------------------------------------------
 
 # calculate partisan affect score for each individual 
@@ -1430,13 +1487,19 @@ aff_pol <- df |>
   summarise(partisan_affect = sum(weighted_distance_to_ingroup_score, na.rm = TRUE)) |>
   ungroup()
 
-# merge
+# # merge
+# also merge ingroup party (MH)
 pol <- pol |>
-  left_join(aff_pol, by = c("nomem_encr", "wave"))
-
+  left_join(aff_pol, by = c("nomem_encr", "wave")) |>
+  left_join(ingroup |> select(nomem_encr, wave, ingroup_party, ingroup_n_tied),
+            by = c("nomem_encr", "wave"))
 
 
 ## Spread ------------------------------------------------------------------
+
+rated <- df |>
+  group_by(nomem_encr, wave) |>
+  summarise(n_rated = sum(!is.na(thermo_score)), .groups = "drop")
 
 # calculate spread score for each individual
 # (see Wagner 2021)
@@ -1450,6 +1513,11 @@ spread <- df |>
   # sum up weighted spread scores for each individual in each wave
   group_by(nomem_encr, wave) |>
   summarize(spread = sqrt(sum(weighted_spread, na.rm = TRUE)))
+
+spread <- spread |> ungroup() |>
+  left_join(rated, by = c("nomem_encr", "wave")) |>
+  mutate(spread = ifelse(n_rated == 0, NA_real_, spread)) |>
+  select(-n_rated)
 
 # merge
 pol <- pol |>
@@ -1475,6 +1543,10 @@ distance <- df |>
   group_by(nomem_encr, wave) |>
   summarize(distance = sqrt(sum(weighted_distance_to_max_score, na.rm = TRUE)))
 
+distance <- distance |> ungroup() |>
+  left_join(rated, by = c("nomem_encr", "wave")) |>
+  mutate(distance = ifelse(n_rated == 0, NA_real_, distance)) |>
+  select(-n_rated)
 
 # merge
 pol <- pol |>
@@ -1485,13 +1557,18 @@ pol <- pol |>
 ## Most liked and most disliked scores -------------------------------------
 
 # calculate max and min score for each individual (see Chagai Weiss (2023))
+# MH: added most liked party signifier to possibly look for party-specific dynamics later
 max <- df |>
-  filter(!is.na(thermo_score)) %>%
-  group_by(nomem_encr, wave) %>%
+  filter(!is.na(thermo_score)) |>
+  group_by(nomem_encr, wave) |>
   filter(thermo_score == max(thermo_score, na.rm = TRUE)) |>
-  mutate(like_max = thermo_score) |>
+  mutate(
+    like_max        = thermo_score,
+    like_max_party  = paste(sort(unique(party)), collapse = "|"),
+    like_max_n_tied = n_distinct(party)
+  ) |>
   ungroup() |>
-  select(nomem_encr, wave, like_max) |>
+  select(nomem_encr, wave, like_max, like_max_party, like_max_n_tied) |>
   distinct()
 
 min <- df |>
@@ -1509,7 +1586,8 @@ pol <- pol |>
   left_join(min, by = c("nomem_encr", "wave"))
 
 # write .csv
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(pol, file = "liss_politics.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(pol, file = "liss_politics_to26.csv")
 
 ### END
+

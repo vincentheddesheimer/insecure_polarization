@@ -6,12 +6,12 @@ rm(list=ls())
 pacman::p_load(data.table, tidyverse, readstata13, furrr, lubridate, psych, BBmisc)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/social_integration_leisure/")
+setwd("C:/Datasets/LISS/social_integration_leisure")
 
 # read .dta files  --------------------------------------------------------
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 social_leisure <- 
   # list all .dta files in directory
@@ -133,16 +133,10 @@ social_leisure <- social_leisure |>
     close_contact_3_homesit = `352`,
     close_contact_4_homesit = `363`,
     close_contact_5_homesit = `374`,
-    # Home situation
-    close_contact_1_homesit = `330`,
-    close_contact_2_homesit = `341`,
-    close_contact_3_homesit = `352`,
-    close_contact_4_homesit = `363`,
-    close_contact_5_homesit = `374`
   )
 
 # write .csv
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(social_leisure, file = "liss_social_integration_leisure.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(social_leisure, file = "liss_social_integration_leisure_to26.csv")
 
 ### END

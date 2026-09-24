@@ -12,9 +12,9 @@ pacman::p_load(tidyverse, data.table, scales)
 # setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
 
 # Load data
-df <- fread("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/liss_combined.csv")
+df <- fread("C:/Datasets/LISS/cleaned/liss_combined_to26.csv")
 
-names(df)
+# names(df)
 
 # Create outgroup-aversion measures ---------------------------------------
 
@@ -42,6 +42,7 @@ df2 <- df %>%
       age >= 56 & age <= 60 ~ 10,
       age >= 61 & age <= 65 ~ 11,
       age >= 66 & age <= 70 ~ 12,
+      age >= 71 ~ 13, # MH: added >= 71
       TRUE ~ NA_integer_
     )
   ) %>%
@@ -58,10 +59,16 @@ df2 <- df %>%
   # Recode close contacts' origins
   mutate(across(ends_with("_origin"), 
                 ~case_when(
-                  . == 1 ~ 1,
-                  . %in% 2:7 ~ 3,
-                  . == 8 ~ 2,
-                  . == 9 ~ NA_integer_,
+                  . == 1 ~ 1, # doesn't change
+                  (wave < 24)  & (.x %in% 2:7)           ~ 3,
+                  (wave < 24)  & (.x  ==  8)             ~ 2,
+                  (wave < 24)  & (.x  ==  9)             ~ NA_integer_,
+                  # MH: coding changed for wave 24: new CBS classifications
+                  # no "western/non-western" categories anymore; for now, be conservative
+                  # and code European = western, america/oceania to NA because ambiguous
+                  (wave >= 24) & (.x %in% c(2:6, 10:12)) ~ 3,
+                  (wave >= 24) & (.x  ==  9)             ~ 2, # European (excl. Dutch)
+                  (wave >= 24) & (.x %in% c(13, -9, -8)) ~ NA_integer_, # 13 = america/oceania
                   TRUE ~ NA_integer_
                 )
   )) %>%
@@ -176,27 +183,27 @@ df5 <- df4 %>%
   )
 
 
-### Inspect ###
-# inspect
-df5 |> janitor::tabyl(red_weighted_distance_gender_mean, wave)
-
-# Age
-df5 |>
-  arrange(nomem_encr, wave) |>
-  select(nomem_encr, wave, age_cat_2, matches("_age")) |>
-  glimpse()
-
-# Gender
-df5 |>
-  arrange(nomem_encr, wave) |>
-  select(nomem_encr, wave, gender, matches("_gender")) |>
-  glimpse()
-
-# Ethnicity 
-df5 |>
-  arrange(nomem_encr, wave) |>
-  select(nomem_encr, wave, origin,  matches("_origin"), matches("_ethnicity_")) |>
-  glimpse()
+# ### Inspect ###
+# # inspect
+# df5 |> janitor::tabyl(red_weighted_distance_gender_mean, wave)
+# 
+# # Age
+# df5 |>
+#   arrange(nomem_encr, wave) |>
+#   select(nomem_encr, wave, age_cat_2, matches("_age")) |>
+#   glimpse()
+# 
+# # Gender
+# df5 |>
+#   arrange(nomem_encr, wave) |>
+#   select(nomem_encr, wave, gender, matches("_gender")) |>
+#   glimpse()
+# 
+# # Ethnicity 
+# df5 |>
+#   arrange(nomem_encr, wave) |>
+#   select(nomem_encr, wave, origin,  matches("_origin"), matches("_ethnicity_")) |>
+#   glimpse()
 
 
 
@@ -223,16 +230,22 @@ df6 <- df5 %>%
   calculate_overall_mean("red_weighted_")
 
 
-# inspect
-df6 |>
-  arrange(nomem_encr, wave) |>
-  select(nomem_encr, wave, 
-         distance_age_rel_mean, distance_gender_mean, distance_ethnicity_rel_mean, distance_education_rel_mean, overall_mean_distance
-         ) |>
-  glimpse()
-
-### Worked well!
-
+# # inspect
+# df6 |>
+#   arrange(nomem_encr, wave) |>
+#   select(nomem_encr, wave, 
+#          distance_age_rel_mean, distance_gender_mean, distance_ethnicity_rel_mean, distance_education_rel_mean, overall_mean_distance
+#          ) |>
+#   glimpse()
+# 
+# ### Worked well!
+# 
+# df6 |>
+#   arrange(nomem_encr, wave) |>
+#   select(nomem_encr, wave, 
+#          partisan_affect
+#   ) |>
+#   glimpse()
 
 # Transform variables -----------------------------------------------------
 
@@ -279,6 +292,9 @@ df6 <- df6 |>
     ),
     net_monthly_income_cat = ifelse(net_monthly_income_cat == 13 | net_monthly_income_cat == 14, NA, net_monthly_income_cat),
     # calculate net monthly income + 1 to avoid 0 when calculating percentage changes
+    # MH: there might be a case for excluding 11 and 12 too because they are not in 
+    #     500 EUR increments like the rest
+    
     net_monthly_income_cat = net_monthly_income_cat + 1,
   ) |>
   # Change variables
@@ -491,11 +507,13 @@ df7 <- df6 |>
          hh_fin_sat, delta_hh_fin_sat, hh_fin_sat_decrease,
          # controls
          age, age_cat, education_cat, student, retired, employed, no_children_hh, no_hh, partner,
-         l1_net_monthly_income_cat, male, house_owner, occupation
+         l1_net_monthly_income_cat, male, house_owner, occupation,
+         # new (MH)
+         ingroup_party, ingroup_n_tied, like_max_party, like_max_n_tied
   )
 
 # Write
-fwrite(df7, file = "~/Documents/GitHub/insecure_polarization/data/liss.csv")
+fwrite(df7, file = "C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/liss_to26.csv")
 
 
 names(df7)

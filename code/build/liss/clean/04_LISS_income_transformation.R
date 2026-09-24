@@ -12,10 +12,10 @@ library(lubridate)
 
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/income/")
+setwd("C:/Datasets/LISS/income")
 
 # read .dta files 
 inc <- 
@@ -523,8 +523,8 @@ inc <-
 
 
 # write .csv file
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(inc, file = "liss_income.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(inc, file = "liss_income_to26.csv")
 
 
 ### END

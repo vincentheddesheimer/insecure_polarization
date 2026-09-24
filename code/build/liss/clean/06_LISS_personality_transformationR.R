@@ -6,13 +6,13 @@ rm(list=ls())
 pacman::p_load(data.table, tidyverse, readstata13, furrr, lubridate, psych, BBmisc)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/personality/")
+setwd("C:/Datasets/LISS/personality")
 
 
 # read .dta files  --------------------------------------------------------
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 pers <- 
   # list all .dta files in directory
@@ -69,7 +69,13 @@ pers <-
                        `202205` = "22",
                        `202206` = "22",
                        `202305` = "23",
-                       `202306` = "23")) |>
+                       `202306` = "23",
+                       `202405` = "24",
+                       `202406` = "24",
+                       `202505` = "25",
+                       `202506` = "25",
+                       `202605` = "26",
+                       `202606` = "26")) |>
   # Rename ------------------------------------------------------------------
 # select & rename
 select(nomem_encr,
@@ -153,8 +159,8 @@ pers <- pers |>
 
 
 # write .csv
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(pers, file = "liss_personality.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(pers, file = "liss_personality_to26.csv")
 
 
 ### END

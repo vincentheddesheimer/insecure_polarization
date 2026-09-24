@@ -12,10 +12,10 @@ library(lubridate)
 
 
 # use multisession evaluation
-plan(multisession)
+plan(sequential)
 
 # set wd
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/background/")
+setwd("C:/Datasets/LISS/background")
 
 
 # create dataframe
@@ -67,7 +67,7 @@ backg <-
   arrange(nomem_encr)
 
 # write .csv
-setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
-fwrite(backg, "liss_background.csv")
+setwd("C:/Datasets/LISS/cleaned")
+fwrite(backg, "liss_background_to26.csv")
 
 ### End

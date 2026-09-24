@@ -13,7 +13,7 @@ rm(list = ls())
 pacman::p_load(tidyverse, data.table, did2s, haschaR, modelsummary)
 
 # Load LISS data
-df <- fread("data/liss.csv")
+df <- fread("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/liss_to26.csv")
 
 # Remove duplicates -------------------------------------------------------
 
@@ -116,44 +116,92 @@ df1 |>
   select(all_of(pvars)) |>
   datasummary_skim()
 
+# MH: check how many individuals are thrown out using the balanced setup
+# (Claude code)
 
-# # Define a function to perform event study analysis for a single variable
-# perform_event_study <- function(data, yname, idname, tname, gname, estimator, pvar) {
-#   event_study(
-#     data = data, yname = pvar, idname = idname,
-#     tname = tname, gname = gname,
-#     estimator = estimator
-#   ) %>%
-#     mutate(dv = pvar)
-# }
-# 
-# # Initialize an empty list to store the results
-# event_study_results <- list()
-# 
-# # Loop over each variable in pvars
-# for (pvar in pvars) {
-#   # Perform event study analysis for the current variable
-#   result <- perform_event_study(
-#     data = df1,
-#     yname = pvar,
-#     idname = "id",
-#     tname = "t",
-#     gname = "first_treatment_period",
-#     estimator = "all",
-#     pvar = pvar
-#   )
-#   
-#   # Append the result to the list
-#   event_study_results[[pvar]] <- result
-# }
-# 
-# # Combine the results into a single data frame
-# combined_results <- bind_rows(event_study_results)
-# 
-# # save 
-# fwrite(combined_results, "~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
+# results in up to 16.7k dv observations getting dropped
+# 807 units survive for spread/distance etc. (~700 control, ~100 treated),
+# only 139 for homophily (114 control, 24 treated)
 
-combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
+balance_report <- function(data, y, covars = NULL,
+                           idname = "id", tname = "t",
+                           gname = "first_treatment_period") {
+  d <- data[!is.na(data[[y]]), , drop = FALSE]
+  if (length(covars)) d <- d[complete.cases(d[, covars, drop = FALSE]), , drop = FALSE]
+  
+  periods <- sort(unique(d[[tname]]))
+  t1 <- min(periods)
+  
+  u <- d |>
+    group_by(.data[[idname]]) |>
+    summarise(n_per = n_distinct(.data[[tname]]),
+              g     = first(.data[[gname]]), .groups = "drop")
+  
+  already  <- u$g > 0 & u$g <= t1          # treated in or before the first period
+  u2       <- u[!already, ]
+  complete <- u2$n_per == length(periods)
+  
+  list(
+    summary = data.frame(
+      dv                   = y,
+      periods              = length(periods),
+      units_start          = nrow(u),
+      drop_already_treated = sum(already),
+      drop_unbalanced      = sum(!complete),
+      units_left           = sum(complete),
+      treated_left         = sum(complete & u2$g > 0),
+      control_left         = sum(complete & u2$g == 0),
+      pct_kept             = round(100 * sum(complete) / nrow(u), 1)),
+    cohorts = u2[complete & u2$g > 0, ] |> count(g, name = "n_units")
+  )
+}
+
+reports <- lapply(pvars, function(v) balance_report(df1, v))
+names(reports) <- pvars
+
+drops <- do.call(rbind, lapply(reports, `[[`, "summary"))
+
+
+# -------- Balanced estimation ----------------------
+
+
+# Define a function to perform event study analysis for a single variable
+perform_event_study <- function(data, yname, idname, tname, gname, estimator, pvar) {
+  event_study(
+    data = data, yname = pvar, idname = idname,
+    tname = tname, gname = gname,
+    estimator = estimator
+  ) %>%
+    mutate(dv = pvar)
+}
+
+# Initialize an empty list to store the results
+event_study_results <- list()
+
+# Loop over each variable in pvars
+for (pvar in pvars) {
+  # Perform event study analysis for the current variable
+  result <- perform_event_study(
+    data = df1,
+    yname = pvar,
+    idname = "id",
+    tname = "t",
+    gname = "first_treatment_period",
+    estimator = "did", # edit to "did" for only Callaway-Sant'Anna
+    pvar = pvar
+  )
+
+  # Append the result to the list
+  event_study_results[[pvar]] <- result
+}
+
+# Combine the results into a single data frame
+combined_results <- bind_rows(event_study_results)
+
+# save
+fwrite(combined_results, "C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/combined_to26.csv")
+
+# combined_results <- fread("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/combined_results.csv")
 
 # polarization
 combined_results |>
@@ -210,7 +258,7 @@ combined_results |>
 
 ## use only callaway sant anna ---------------------------------------------
 
-combined_results <- fread("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/combined_results.csv")
+combined_results <- fread("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/combined_to26.csv")
 
 
 # polarization results
@@ -379,7 +427,7 @@ combined_results |>
   scale_x_continuous(breaks = seq(-5, 8, 1)) +
   facet_wrap(~ dv, scales = "free", ncol = 2)
 
-ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all.pdf", width = 7, height = 7)
+ggsave("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/unemp_to26.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all.pdf", width = 7, height = 7)
 
@@ -427,6 +475,110 @@ combined_results |>
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_twfe.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_twfe.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_twfe.pdf", width = 7, height = 7)
+
+# Unbalanced Callaway-Sant'Anna estimation ----------------
+# Claude, checked manually
+
+fvars <- c("spread", "distance", "like_min", "like_max",
+           "red_overall_mean_distance", "generalized_trust")
+
+cs_unbalanced <- function(data, yname,
+                          idname = "id", tname = "t",
+                          gname = "first_treatment_period",
+                          xformla = NULL,
+                          unbalanced = TRUE,
+                          base_period = "varying",
+                          balance_e = NULL,
+                          na.rm = FALSE) {
+  
+  att <- did::att_gt(
+    yname = yname, tname = tname, idname = idname, gname = gname,
+    xformla = xformla, data = as.data.frame(data),
+    control_group          = "nevertreated",
+    base_period            = base_period,
+    allow_unbalanced_panel = unbalanced,
+    est_method             = "dr"
+  )
+  
+  agg <- did::aggte(att, type = "dynamic",
+                    balance_e = balance_e, na.rm = na.rm)
+  
+  list(
+    tidy = data.frame(term      = agg$egt,
+                      estimate  = agg$att.egt,
+                      std.error = agg$se.egt,
+                      crit.val  = agg$crit.val.egt,
+                      estimator = "Callaway and Sant'Anna (2020)",
+                      dv        = yname),
+    att      = att,
+    agg      = agg,
+    n_units  = att$n,
+    na_cells = sum(is.na(att$att))
+  )
+}
+
+cs_fits <- vector("list", length(fvars))
+names(cs_fits) <- fvars
+for (v in fvars) {
+  message("\n=== ", v, " ===")
+  cs_fits[v] <- list(tryCatch(
+    cs_unbalanced(df1, v,
+                  xformla = NULL, # controls here, paste from below
+                  balance_e = 8), # this drops groups not exposed to treatment for at least x+1 periods (e = 0 + ... + e = x)
+    # ~ education_cat + no_children_hh + partner + student + retired + l1_net_monthly_income_cat + house_owner
+    error = function(e) {
+      message("  FAILED: ", conditionMessage(e))
+      NULL
+    }))
+}
+
+do.call(rbind, lapply(names(cs_fits), function(v) {
+  f <- cs_fits[[v]]
+  data.frame(dv       = v,
+             ok       = !is.null(f),
+             n_units  = if (is.null(f)) NA_integer_ else f$n_units,
+             na_cells = if (is.null(f)) NA_integer_ else f$na_cells)
+}))
+
+cs_results <- do.call(rbind, lapply(cs_fits[!vapply(cs_fits, is.null, logical(1))],
+                                    `[[`, "tidy"))
+
+cs_results |>
+  filter(estimator %in% c("Callaway and Sant'Anna (2020)")) |>
+  filter(dv %in% c("spread", "distance", "like_min", "like_max", "red_overall_mean_distance", "generalized_trust")) |>
+  mutate(dv =
+           case_when(
+             dv == "spread" ~ "Affective Polarization (Spread)",
+             dv == "distance" ~ "Affective Polarization (Distance)",
+             dv == "like_min" ~ "Outgroup Aversion",
+             dv == "like_max" ~ "Ingroup Affinity",
+             dv == "red_overall_mean_distance" ~ "Heterophily (close social ties)",
+             dv == "generalized_trust" ~ "Generalized Trust"
+           )) |>
+  # reorder
+  mutate(dv = factor(dv, levels = c("Affective Polarization (Distance)", "Affective Polarization (Spread)", "Outgroup Aversion", "Ingroup Affinity", "Heterophily (close social ties)", "Generalized Trust"))) |>
+  filter(term >= -3 & term <= 8 & !is.na(term)) |>
+  ggplot(aes(x = term, y = estimate, color = estimator)) +
+  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 * std.error), width = 0, linewidth = 0.5, position = position_dodge(0.4)) +
+  geom_errorbar(aes(ymin = estimate - 1.64 * std.error, ymax = estimate + 1.64 * std.error), width = 0, linewidth = 1, position = position_dodge(0.4)) +
+  geom_point(position = position_dodge(0.4), shape = 21, fill = "white", size = 2) +
+  # set color to black and darkgrey
+  scale_color_manual(values = c("black", "darkgrey")) +
+  theme_hanno() +
+  theme(legend.position = "none") +
+  labs(
+    x = "Time relative to treatment",
+    y = "ATT",
+    color = "Polarization Measure"
+  ) +
+  # x axis from -5 to 8
+  scale_x_continuous(breaks = seq(-5, 8, 1)) +
+  facet_wrap(~ dv, scales = "free", ncol = 2)
+
+ggsave("C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/02_unemployment_all/unemp_all_to26_unbal_e_8.pdf", width = 7, height = 7)
+
 
 
 
@@ -512,6 +664,4 @@ combined_results_c |>
 ggsave("~/Dropbox (Princeton)/insecure_polarization/results/figures/2024_03_28/unemp_all_controls.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/Economic Insecurity, Trust, and Polarisation/Plots/unemp_all_controls.pdf", width = 7, height = 7)
 ggsave("~/Dropbox (Princeton)/Apps/Overleaf/HB_insecurity_polarization/unemp_all_controls.pdf", width = 7, height = 7)
-
-
 
