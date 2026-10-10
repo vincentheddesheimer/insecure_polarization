@@ -13,7 +13,8 @@ rm(list = ls())
 pacman::p_load(tidyverse, data.table, did2s, haschaR)
 
 # Load LISS data
-df <- fread("data/liss.csv")
+here::i_am("code/analyze/03_employment.R")
+df <- fread(here::here("data", "liss_to26.csv"))
 
 # Remove duplicates -------------------------------------------------------
 

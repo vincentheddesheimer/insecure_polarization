@@ -14,14 +14,15 @@ library(lubridate)
 # use multisession evaluation
 plan(sequential)
 
-# set wd
-setwd("C:/Datasets/LISS/background")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/05_LISS_background_transformation.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
 
 # create dataframe
 backg <- 
   # list all .dta files in directory
-  list.files(pattern = "*.dta") |>
+  list.files(file.path(liss_raw, "background"), pattern = "\\.dta$", full.names = TRUE) |>
   # read all .dta files in directory
   future_map_dfr(~read.dta13(.)) |>
   # get year and month
@@ -67,7 +68,6 @@ backg <-
   arrange(nomem_encr)
 
 # write .csv
-setwd("C:/Datasets/LISS/cleaned")
-fwrite(backg, "liss_background_to26.csv")
+fwrite(backg, file.path(liss_clean, "liss_background_to26.csv"))
 
 ### End

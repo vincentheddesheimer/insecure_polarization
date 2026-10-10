@@ -8,11 +8,12 @@ rm(list=ls())
 # Load packages
 pacman::p_load(tidyverse, data.table, scales)
 
-# Set wd
-# setwd("~/Dropbox (Princeton)/Data/Panel_Surveys/LISS/")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/01_Liss_data_compilation.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
 # Load data
-df <- fread("C:/Datasets/LISS/cleaned/liss_combined_to26.csv")
+df <- fread(file.path(liss_clean, "liss_combined_to26.csv"))
 
 # names(df)
 
@@ -60,13 +61,16 @@ df2 <- df %>%
   mutate(across(ends_with("_origin"), 
                 ~case_when(
                   . == 1 ~ 1, # doesn't change
-                  (wave < 24)  & (.x %in% 2:7)           ~ 3,
+                  # Indonesian: western in the CBS definition used for respondents (herkomstgroep)
+                  # and in LISS's own pre-2024 contact categories
+                  .x == 6 ~ 2,
+                  (wave < 24)  & (.x %in% c(2:5, 7))     ~ 3,
                   (wave < 24)  & (.x  ==  8)             ~ 2,
                   (wave < 24)  & (.x  ==  9)             ~ NA_integer_,
                   # MH: coding changed for wave 24: new CBS classifications
                   # no "western/non-western" categories anymore; for now, be conservative
                   # and code European = western, america/oceania to NA because ambiguous
-                  (wave >= 24) & (.x %in% c(2:6, 10:12)) ~ 3,
+                  (wave >= 24) & (.x %in% c(2:5, 10:12)) ~ 3,
                   (wave >= 24) & (.x  ==  9)             ~ 2, # European (excl. Dutch)
                   (wave >= 24) & (.x %in% c(13, -9, -8)) ~ NA_integer_, # 13 = america/oceania
                   TRUE ~ NA_integer_
@@ -274,9 +278,10 @@ df6 <- df6 |>
       occupation != 9 & !is.na(occupation) ~ 0,
       TRUE ~ NA_real_
     ),
+    # paid employment, family business, self-employed (10 = "(partial) work disability" is not employment)
     employed = case_when(
-      occupation %in% c(1, 2, 3, 10) ~ 1,
-      !(occupation %in% c(1, 2, 3, 10)) & !is.na(occupation) ~ 0,
+      occupation %in% c(1, 2, 3) ~ 1,
+      !(occupation %in% c(1, 2, 3)) & !is.na(occupation) ~ 0,
       TRUE ~ NA_real_
     ),
     male = ifelse(gender==1,1,0),
@@ -513,7 +518,7 @@ df7 <- df6 |>
   )
 
 # Write
-fwrite(df7, file = "C:/Users/user/OneDrive/Uni/Berlin/R stuff/polarization/insecure_polarization/data/liss_to26.csv")
+fwrite(df7, file = here::here("data", "liss_to26.csv"))
 
 
 names(df7)

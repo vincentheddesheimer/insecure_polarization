@@ -79,7 +79,7 @@ library(tidyverse)
 library(data.table)
 
 # Test with the included dataset
-df <- fread("data/liss.csv")
+df <- fread(here::here("data", "liss_to26.csv"))
 print(paste("Dataset loaded successfully with", nrow(df), "observations"))
 ```
 
@@ -88,17 +88,23 @@ print(paste("Dataset loaded successfully with", nrow(df), "observations"))
 ## Instructions for Use
 
 ### Step 1: Prepare Your Data
-1. Obtain the LISS panel survey data from [https://www.lissdata.nl/](https://www.lissdata.nl/).
-2. Run the files in `code/build/liss/clean/' to clean the raw data.
-2. Place the resulting combined raw data file (`liss_combined.csv`) in the `data/raw/` directory.
-3. Ensure the data file contains all required variables (see Data section below).
+1. Obtain the LISS panel survey data (Stata files) from [https://www.lissdata.nl/](https://www.lissdata.nl/): the core studies Politics and Values (`cv`), Personality (`cp`), Social Integration and Leisure (`cs`), Economic Situation: Income (`ci`), Assets (`ca`), Housing (`cd`), and the monthly Background Variables (`avars`).
+2. Put them in one folder with one subfolder per module: `politics/`, `personality/`, `social_integration_leisure/`, `income/`, `assets/`, `housing/`, `background/`. The raw data are not part of this repository (LISS licence).
+3. Tell the build where that folder is by setting `LISS_RAW`, e.g. in a `.Renviron` file in the repository root (ignored by git):
+   ```
+   LISS_RAW="path/to/LISS"
+   ```
+   Without `LISS_RAW` the build looks in `data/raw/liss/`.
+
+Election results used to weight the party thermometers are in `data/raw/vote_shares.csv` (with sources).
 
 ### Step 2: Data Processing
+Run the scripts from the repository root (paths are resolved with `here::here()`):
 ```r
-# Set working directory to repository root
-setwd("path/to/insecure_polarization")
+# Clean each LISS module; writes intermediate files to <LISS_RAW>/cleaned/
+for (s in list.files("code/build/liss/clean", pattern = "\\.R$", full.names = TRUE)) source(s)
 
-# Run data compilation
+# Build the analysis dataset; writes data/liss_to26.csv
 source("code/build/liss/01_Liss_data_compilation.R")
 ```
 

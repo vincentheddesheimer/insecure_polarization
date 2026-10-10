@@ -5,8 +5,9 @@ rm(list=ls())
 # packages
 pacman::p_load(data.table, tidyverse, readstata13, furrr, lubridate, psych, BBmisc)
 
-# set wd
-setwd("C:/Datasets/LISS/social_integration_leisure")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/07_LISS_socialintegration_transformationR.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
 # read .dta files  --------------------------------------------------------
 
@@ -15,7 +16,7 @@ plan(sequential)
 
 social_leisure <- 
   # list all .dta files in directory
-  list.files(pattern = "*.dta") |>
+  list.files(file.path(liss_raw, "social_integration_leisure"), pattern = "\\.dta$", full.names = TRUE) |>
   # read all .dta files in directory
   future_map(~read.dta13(.)) |>
   # delete first five characters of all variable names starting with c
@@ -136,7 +137,6 @@ social_leisure <- social_leisure |>
   )
 
 # write .csv
-setwd("C:/Datasets/LISS/cleaned")
-fwrite(social_leisure, file = "liss_social_integration_leisure_to26.csv")
+fwrite(social_leisure, file = file.path(liss_clean, "liss_social_integration_leisure_to26.csv"))
 
 ### END

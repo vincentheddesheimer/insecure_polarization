@@ -16,16 +16,15 @@ library(lubridate)
 # use multisession evaluation
 plan(sequential)
 
-# set wd
-setwd("C:/Datasets/LISS/assets")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/02_LISS_assets_transformation.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
-getwd()
-future_map_chr(1:2, ~ getwd())
 
 # read .dta files 
 ass <- 
   # list all .dta files in directory
-  list.files(pattern = "*.dta") |>
+  list.files(file.path(liss_raw, "assets"), pattern = "\\.dta$", full.names = TRUE) |>
   # read all .dta files in directory
   future_map(~read.dta13(.)) |>
   # delete first five characters of all variable names starting with c
@@ -161,7 +160,6 @@ ass <-
 
 
 # write .csv file
-setwd("C:/Datasets/LISS/cleaned")
-fwrite(ass, file = "liss_assets_to26.csv")
+fwrite(ass, file = file.path(liss_clean, "liss_assets_to26.csv"))
 
 ### END

@@ -5,8 +5,9 @@ rm(list=ls())
 # packages
 pacman::p_load(data.table, tidyverse, readstata13, furrr, lubridate, psych, BBmisc)
 
-# set wd
-setwd("C:/Datasets/LISS/personality")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/06_LISS_personality_transformationR.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
 
 # read .dta files  --------------------------------------------------------
@@ -16,7 +17,7 @@ plan(sequential)
 
 pers <- 
   # list all .dta files in directory
-  list.files(pattern = "*.dta") |>
+  list.files(file.path(liss_raw, "personality"), pattern = "\\.dta$", full.names = TRUE) |>
   # read all .dta files in directory
   future_map(~read.dta13(.)) |>
   # delete first five characters of all variable names starting with c
@@ -159,8 +160,7 @@ pers <- pers |>
 
 
 # write .csv
-setwd("C:/Datasets/LISS/cleaned")
-fwrite(pers, file = "liss_personality_to26.csv")
+fwrite(pers, file = file.path(liss_clean, "liss_personality_to26.csv"))
 
 
 ### END

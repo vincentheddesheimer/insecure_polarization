@@ -5,63 +5,56 @@ rm(list=ls())
 # packages
 pacman::p_load(data.table, tidyverse)
 
-# set wd
-setwd("C:/Datasets/LISS/cleaned")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/08_LISS_combine.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
-# read data sets: all .csv files
-file.names <- list.files(pattern = "*.csv") 
-file.names <- file.names[! file.names %in% c("liss_combined.csv", 
-                                             "liss_combined_new.csv",
-                                             "liss_combined_new_vs.csv",
-                                             "liss_combined_to26.csv")]
-df_list <- lapply(file.names, fread)
+# read the cleaned module files by name
+read_module <- function(module) fread(file.path(liss_clean, paste0("liss_", module, "_to26.csv")))
+politics    <- read_module("politics")
+social      <- read_module("social_integration_leisure")
+personality <- read_module("personality")
+assets      <- read_module("assets")
+housing     <- read_module("housing")
+income      <- read_module("income")
+background  <- read_module("background")
 
 # merge
 # politics as base df
-df <- df_list[[6]] |>
+df <- politics |>
   # merge with social_ties
-  full_join(df_list[[7]] |>
+  full_join(social |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_s = date),
             by = c("nomem_encr", "wave")) |>
   # merge with personality
-  full_join(df_list[[5]] |>
+  full_join(personality |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_p = date),
             by = c("nomem_encr", "wave")) |>
   # merge with assets
-  full_join(df_list[[1]] |>
+  full_join(assets |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_a = date),
             by = c("nomem_encr", "wave")) |>
   # merge with housing
-  full_join(df_list[[3]] |>
+  full_join(housing |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_h = date),
             by = c("nomem_encr", "wave")) |>
   # merge with income
-  full_join(df_list[[4]] |>
+  full_join(income |>
               select(-c(year,month, nohouse_encr)) |>
               rename(date_i = date),
             by = c("nomem_encr", "wave")) |>
-  # mutate(
-  #   # date = na_if(date, "NA01"),
-  #   # date = na_if(date, "NA02"),
-  #        date = ifelse(!is.na(date),
-  #                      date,
-  #                      ifelse(!is.na(date_a),
-  #                             date_a,
-  #                             ifelse(!is.na(date_h),
-  #                                    date_h,
-  #                                    date_i)))) |>
+  # interview month: politics first, then the other modules
   mutate(date = dplyr::coalesce(date, date_p, date_s, date_i, date_h, date_a)) |>
-  # merge with background 
-  left_join(df_list[[2]] |>
-              select(-c(year,month)),# |>
-              # mutate(date = as.character(date)),
+  # merge with background
+  left_join(background |>
+              select(-c(year,month)),
             by = c("nomem_encr", "date"))
 
 # write as .csv
-fwrite(df, "liss_combined_to26.csv")
+fwrite(df, file.path(liss_clean, "liss_combined_to26.csv"))
 
 ### END

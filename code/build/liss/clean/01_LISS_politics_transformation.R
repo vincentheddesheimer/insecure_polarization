@@ -5,8 +5,9 @@ rm(list=ls())
 # packages
 pacman::p_load(data.table, tidyverse, readstata13, furrr)
 
-# set wd
-setwd("C:/Datasets/LISS/politics")
+# paths (liss_raw, liss_clean)
+here::i_am("code/build/liss/clean/01_LISS_politics_transformation.R")
+source(here::here("code", "build", "liss", "00_paths.R"))
 
 
 # read .dta files  --------------------------------------------------------
@@ -14,9 +15,9 @@ setwd("C:/Datasets/LISS/politics")
 # use multisession evaluation
 plan(sequential)
 
-pol <- 
+pol <-
   # list all .dta files in directory
-  list.files(pattern = "*.dta") |>
+  list.files(file.path(liss_raw, "politics"), pattern = "\\.dta$", full.names = TRUE) |>
   # read all .dta files in directory
   future_map(~read.dta13(.)) |>
   # delete first five characters of all variable names starting with c
@@ -841,7 +842,7 @@ pol <-
                             (partisan_party_13 == 5 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 3 & !is.na(partisan_party_18)),
                           1,0),
-    # PvdA (labor party) -> extended to include answers for joint list
+    # PvdA (labor party); the joint GL-PvdA list (24+) is its own party below
     partisan_PvdA =  ifelse((partisan_party_12 == 2 & !is.na(partisan_party_12))|
                               (partisan_party_13 == 2 & !is.na(partisan_party_13))|
                               (partisan_party_18 == 7 & !is.na(partisan_party_18)),
@@ -856,7 +857,7 @@ pol <-
                             (partisan_party_13 == 4 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 6 & !is.na(partisan_party_18)),
                           1,0),
-    # GroenLinks (green party) -> extended to include answers for joint list
+    # GroenLinks (green party); the joint GL-PvdA list (24+) is its own party below
     partisan_GL =  ifelse((partisan_party_12 == 7 & !is.na(partisan_party_12))|
                             (partisan_party_13 == 8 & !is.na(partisan_party_13))|
                             (partisan_party_18 == 5 & !is.na(partisan_party_18)),
@@ -917,7 +918,7 @@ pol <-
                                     (party_attraction_party_13 == 5 & !is.na(party_attraction_party_13))|
                                     (party_attraction_party_18 == 3 & !is.na(party_attraction_party_18)),
                                   1,0),
-    # PvdA (labor party) -> extended to include joint list
+    # PvdA (labor party); the joint GL-PvdA list (24+) is its own party below
     party_attraction_PvdA = ifelse((party_attraction_party_12 == 2 & !is.na(party_attraction_party_12))|
                                      (party_attraction_party_13 == 2 & !is.na(party_attraction_party_13))|
                                      (party_attraction_party_18 == 7 & !is.na(party_attraction_party_18)),
@@ -932,7 +933,7 @@ pol <-
                                    (party_attraction_party_13 == 4 & !is.na(party_attraction_party_13))|
                                    (party_attraction_party_18 == 6 & !is.na(party_attraction_party_18)),
                                  1,0),
-    # GroenLinks (green party) -> extended to include joint list
+    # GroenLinks (green party); the joint GL-PvdA list (24+) is its own party below
     party_attraction_GL = ifelse((party_attraction_party_12 == 7 & !is.na(party_attraction_party_12))|
                                    (party_attraction_party_13 == 8 & !is.na(party_attraction_party_13))|
                                    (party_attraction_party_18 == 5 & !is.na(party_attraction_party_18)),
@@ -1367,34 +1368,23 @@ df <- thermo |>
   left_join(party_attraction, by = c("nomem_encr", "wave", "party"))
 
 # create partisan combined variable
+# Adherents (cv..199 = 1) are never asked the attraction question and leaners are
+# never asked the adherent question, so one of the two is always NA. Treat NA as
+# "no": otherwise parties coded only from the wave-18 list (DENK, FvD, Volt, JA21,
+# BBB, BIJ1, NSC, GL_PvdA) get NA, drop out as out-parties, and their leaners lose
+# their in-party.
 df <- df |>
-  mutate(partisan_comb = ifelse(partisan == 1, 1,
-                                ifelse(party_attraction == 1, 1, 
-                                       0)))
+  mutate(partisan_comb = as.integer(coalesce(partisan == 1, FALSE) |
+                                    coalesce(party_attraction == 1, FALSE)))
 
 
 ## Vote share data ---------------------------------------------------------
-vs2006 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2006_11") |>
-  mutate(election_year = 2006)
-vs2010 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2010_06") |>
-  mutate(election_year = 2010)
-vs2012 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2012_09") |>
-  mutate(election_year = 2012)
-vs2017 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2017_03") |>
-  mutate(election_year = 2017)
-# added (MH):
-vs2021 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2021_03") |>
-  mutate(election_year = 2021)
-vs2023 <- readxl::read_excel("C:/Datasets/LISS/vote_shares.xlsx", sheet = "2023_11") |>
-  mutate(election_year = 2023)
-# 2025 not available yet from nlverkiezingen.com, but we can use another source
-
-# combine
-vs <- bind_rows(vs2006, vs2010, vs2012, vs2017, vs2021, vs2023) |>
+# national results of the parliamentary elections 2006-2025; see the source column
+vs <- fread(here::here("data", "raw", "vote_shares.csv")) |>
   mutate(
     # mutate party abbreviations for merging
     party = ifelse(party == "GrLinks", "GL", party),
-    party = ifelse(party == "DBB", "BBB", party),
+    party = ifelse(party == "TROTS", "TON", party),
     party = ifelse(party == "DPK", "TON", party),
     party = ifelse(party == "GL/PvdA", "GL_PvdA", party)
   ) |>
@@ -1412,7 +1402,10 @@ df <- df |>
                                                      2017,
                                                      ifelse(wave >= 21 & wave < 24,
                                                             2021,
-                                                            2023)))))) |>
+                                                            # wave 26 is fielded after the Oct 2025 election
+                                                            ifelse(wave >= 24 & wave < 26,
+                                                                   2023,
+                                                                   2025))))))) |>
   left_join(vs, by = c("party", "election_year"))
 
 # Calculate share of voters for Volt and JA21 (since 2018)
@@ -1586,8 +1579,7 @@ pol <- pol |>
   left_join(min, by = c("nomem_encr", "wave"))
 
 # write .csv
-setwd("C:/Datasets/LISS/cleaned")
-fwrite(pol, file = "liss_politics_to26.csv")
+fwrite(pol, file = file.path(liss_clean, "liss_politics_to26.csv"))
 
 ### END
 

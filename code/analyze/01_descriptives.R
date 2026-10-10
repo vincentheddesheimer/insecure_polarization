@@ -10,7 +10,8 @@ rm(list = ls())
 pacman::p_load(tidyverse, data.table, modelsummary, kableExtra)
 
 # Load LISS data
-df <- fread("data/liss.csv")
+here::i_am("code/analyze/01_descriptives.R")
+df <- fread(here::here("data", "liss_to26.csv"))
 # df <- fread("~/Dropbox (Princeton)/insecure_polarization/Data/orig/liss.csv")
 
 # Remove duplicates -------------------------------------------------------

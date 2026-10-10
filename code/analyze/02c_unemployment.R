@@ -13,7 +13,8 @@ rm(list = ls())
 pacman::p_load(tidyverse, data.table, did, haschaR, modelsummary, HonestDiD)
 
 # Load LISS data
-df <- fread("data/liss.csv")
+here::i_am("code/analyze/02c_unemployment.R")
+df <- fread(here::here("data", "liss_to26.csv"))
 
 # source honestdid function for Callaway Sant'Anaa
 source("code/analyze/honestdid_cs.R")
