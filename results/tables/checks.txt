@@ -1,0 +1,11 @@
+check	pass	detail
+prep_outcome	TRUE	waves renumbered over fielded waves; events in and after a skipped wave start at the next fielded wave
+CS balanced panel	TRUE	identical to did's balancing: TRUE; cohort-removal case: TRUE; did 2.5.1 internal error: present (Internal error: treated group 5 not found in cohort_vec. Ple)
+CS balanced panel	TRUE	identical to did's balancing: TRUE; cohort-removal case: TRUE; did 2.5.1 internal error: present (Internal error: treated group 5 not found in cohort_vec. Ple)
+CS (run_cs)	TRUE	max |estimate - truth| = 0.0202, max SE = 0.0237, 75 terms; specs: main, notyet, balanced, antic1, covars
+fect (run_fect + fect_tidy)	TRUE	max |estimate - truth| = 0.0001, max SE = 0.0312, 15 terms
+BJS imputation (run_bjs)	TRUE	max |estimate - truth| = 0.0002, max SE = 0.0001, 30 terms
+DIDmultiplegtDYN (run_dcdh)	TRUE	max |estimate - truth| = 0.0001, max SE = 0.0001, 13 terms
+Sun-Abraham + TWFE (run_fixest)	TRUE	max |estimate - truth| = 0.0002, max SE = 0.0001, 27 terms
+synthdid (sdid_cell)	TRUE	16 of 16 cells; max |estimate - truth| = 0.0004, max SE = 0.0002, 16 terms
+PanelMatch (est_lead)	TRUE	max |estimate - by hand| = 3.3e-15; max |estimate - truth| = 0.0024, max SE = 0.1063, 4 terms; controls treated at t+h: 0/0.135/0.187/0.158; effect for treated alone: 1/1.5/2/2.5

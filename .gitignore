@@ -4,3 +4,8 @@
 .Ruserdata
 .Renviron
 data/raw/liss/
+data/analysis/
+results/estimates/
+results/**/*_TEST.*
+code/analyze_did/della/logs/
+code/analyze_did/della/*.log
