@@ -68,6 +68,7 @@ tidy <- list(); overall <- list(); honest <- list()
 if (do_estimate) {
 for (i in seq_len(nrow(runs))) {
   tr <- runs$treatment[i]; sm <- runs$sample[i]
+  if (!run_tr(tr)) next
   d <- get_panel(panels, tr, sm)
   specs <- if (tr == "jobloss" && sm == "all") names(cs_specs) else "main"
   for (sp in specs) for (y in outcomes) {

@@ -59,6 +59,7 @@ tidy <- list(); overall <- list()
 if (do_estimate) {
 for (i in seq_len(nrow(runs))) {
   tr <- runs$treatment[i]; sm <- runs$sample[i]
+  if (!run_tr(tr)) next
   d <- get_panel(panels, tr, sm)
   for (type in names(labels)) for (y in outcomes) {
     key <- paste(type, tr, sm, y, sep = "|")

@@ -105,15 +105,16 @@ if (run_checks) check_panelmatch(prep_pm, pm_formula, match_lead, est_lead)
 
 tidy <- list(); events <- list()
 if (do_estimate) {
-for (sm in c("all", "men", "women")) {
-  d <- get_panel(panels, "jobloss_onoff", sm)
+for (tr in c("jobloss_onoff", "pinc25")) for (sm in c("all", "men", "women")) {
+  if (!run_tr(tr)) next
+  d <- get_panel(panels, tr, sm)
   for (y in outcomes) {
-    key <- paste("jobloss_onoff", sm, y, sep = "|")
+    key <- paste(tr, sm, y, sep = "|")
     r <- try_est(run_pm(d, y), key)
     if (is.null(r)) next
     # pre-period terms (if any) come from the covariate-only placebo refinement
-    tidy[[key]] <- as_tidy(r$es, "PanelMatch", "main", "jobloss_onoff", sm, y, r$n_units, r$n_treated)
-    events[[key]] <- r$n_events[, `:=`(sample = sm, outcome = y)]
+    tidy[[key]] <- as_tidy(r$es, "PanelMatch", "main", tr, sm, y, r$n_units, r$n_treated)
+    events[[key]] <- r$n_events[, `:=`(treatment = tr, sample = sm, outcome = y)]
   }
 }
 

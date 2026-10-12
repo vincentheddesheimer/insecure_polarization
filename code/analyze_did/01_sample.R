@@ -19,7 +19,7 @@ liss <- liss[age >= 18 & age <= 65]
 
 keep_cols <- c("id", "t", "wave", names(outcome_labels), "occupation", "emp", "unemp", "age", "male",
                "education_cat", "no_hh", "net_monthly_income_cat",
-               "income_hh_rel_decrease_median", "income_cat_rel_decrease_median")
+               "income_hh_rel_decrease_median", "income_cat_rel_decrease_median", "net_monthly_income")
 liss <- liss[, ..keep_cols]
 
 
@@ -71,6 +71,12 @@ jobloss_onoff[, G := if (any(D == 1)) t[which(D == 1)[1]] else 0L, by = id]   # 
 hh_inc <- make_absorbing(liss, "income_hh_rel_decrease_median")
 inc    <- make_absorbing(liss, "income_cat_rel_decrease_median")
 
+# 6. large personal income loss: net personal income (background variables, euros) at least 25%
+#    below the directly preceding wave, absorbing (12_alt_treatments.R compares candidate treatments)
+liss[, inc_l := fifelse(t - shift(t) == 1, shift(net_monthly_income), NA_real_), by = id]
+liss[, ev_pinc25 := as.integer(inc_l > 0 & net_monthly_income <= 0.75 * inc_l)]
+pinc25 <- make_absorbing(liss, "ev_pinc25")
+
 # 5. reemployment placebo as in the paper: first wave employed after an unemployed wave,
 #    within the labor-force waves (comparison group: never reemployed)
 reemp <- copy(jobloss_onoff)[, c("D", "G") := NULL]
@@ -78,7 +84,7 @@ reemp[, ev := emp & shift(unemp) %in% TRUE, by = id]
 reemp[, G := if (any(ev)) t[which(ev)[1]] else 0L, by = id]
 reemp[, D := as.integer(G > 0 & t >= G)][, ev := NULL]
 
-panels <- list(jobloss = jobloss, jobloss_onoff = jobloss_onoff, hh_inc = hh_inc, inc = inc, reemp = reemp)
+panels <- list(jobloss = jobloss, jobloss_onoff = jobloss_onoff, hh_inc = hh_inc, inc = inc, reemp = reemp, pinc25 = pinc25)
 dir.create(dirname(path_panels), recursive = TRUE, showWarnings = FALSE)
 saveRDS(panels, path_panels)
 

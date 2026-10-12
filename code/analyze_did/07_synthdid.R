@@ -62,18 +62,19 @@ if (run_checks) check_synthdid(sdid_cell, pre_waves)
 
 tidy <- list(); overall <- list(); cells <- list()
 if (do_estimate) {
-for (sm in c("all", "men", "women")) {
-  d <- get_panel(panels, "jobloss", sm)
-  specs <- if (sm == "all") names(pre_waves) else "main"
+for (tr in c("jobloss", "pinc25")) for (sm in c("all", "men", "women")) {
+  if (!run_tr(tr)) next
+  d <- get_panel(panels, tr, sm)
+  specs <- if (sm == "all" && tr == "jobloss") names(pre_waves) else "main"
   for (sp in specs) for (y in outcomes) {
-    key <- paste("jobloss", sm, sp, y, sep = "|")
+    key <- paste(tr, sm, sp, y, sep = "|")
     r <- try_est(run_sdid(d, y, pre_waves[[sp]]), key)
     if (is.null(r)) next
-    tidy[[key]] <- as_tidy(r$es[, .(term, estimate, se)], "synthdid", sp, "jobloss", sm, y,
+    tidy[[key]] <- as_tidy(r$es[, .(term, estimate, se)], "synthdid", sp, tr, sm, y,
                            NA_integer_, r$n_treated)
-    overall[[key]] <- data.table(estimator = "synthdid", spec = sp, treatment = "jobloss", sample = sm,
+    overall[[key]] <- data.table(estimator = "synthdid", spec = sp, treatment = tr, sample = sm,
                                  outcome = y, att = r$ov$att, se = r$ov$se)
-    cells[[key]] <- r$cells[, `:=`(sample = sm, spec = sp, outcome = y)]
+    cells[[key]] <- r$cells[, `:=`(treatment = tr, sample = sm, spec = sp, outcome = y)]
   }
 }
 save_est(list(tidy = rbindlist(tidy), overall = rbindlist(overall), cells = rbindlist(cells)), "synthdid")

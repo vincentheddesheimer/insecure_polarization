@@ -32,12 +32,6 @@ econ_labels <- c(pr_lose_job    = "Chance of losing job within 12 months (%)",
 elec_year <- function(wave) as.integer(as.character(cut(wave, c(-Inf, 9, 11, 16, 20, 23, 25, Inf),
                                                         labels = c(2006, 2010, 2012, 2017, 2021, 2023, 2025))))
 
-# linear combination w'b of event-study coefficients (names = event times; -1 is the reference, 0)
-lincom <- function(b, V, w) {
-  w <- w[names(w) != "-1"]
-  c(estimate = sum(w * b[names(w)]), se = sqrt(drop(t(w) %*% V[names(w), names(w)] %*% w)))
-}
-ev <- function(e, x) setNames(rep(x, length(e)), e)
 contrast_defs <- list(
   `t-1 vs mean(t-5..t-2)` = ev(-5:-2, -1/4),
   `t-2 vs mean(t-5..t-3)` = c(ev(-2, 1), ev(-5:-3, -1/3)),
@@ -59,37 +53,6 @@ recentre <- function(b, V, ref) {
 }
 references <- list(`t-1 (main)` = "-1", `t-2 (anticipation)` = "-2", `mean of t-5..t-3` = as.character(-5:-3))
 
-# Sun-Abraham fit as in 06_sunab_twfe.R; returns event-time coefficients and their vcov
-sa_fit <- function(d, y) {
-  d <- prep_outcome(d, y)
-  d[, G_sa := fifelse(G > 0, G, 10000L)][, rel := fifelse(G > 0, t - G, NA_integer_)]
-  m <- feols(as.formula(paste(y, "~", sunab_rhs(d), "| id + t")), data = d, cluster = ~id)
-  s <- summary(m)
-  # fixest reports event-time coefficients aggregated over cohorts (weights = observations per
-  # cohort x event time), but vcov() is that of the cohort x event-time coefficients: rebuild the
-  # aggregation matrix A, then b = A b_raw, V = A V_raw A' (checked against fixest's own output)
-  raw <- names(m$coefficients); per <- sub(":cohort::.*", "", raw)
-  n <- colSums(model.matrix(m, type = "rhs") != 0)[raw]
-  A <- t(sapply(names(coef(s)), function(p) ifelse(per == p, n, 0) / sum(n[per == p])))
-  b <- drop(A %*% m$coefficients); V <- A %*% vcov(m) %*% t(A)
-  stopifnot(max(abs(b - coef(s))) < 1e-8, max(abs(sqrt(diag(V)) - se(s))) < 1e-8)
-  names(b) <- sub(".*::", "", names(coef(s))); dimnames(V) <- list(names(b), names(b))
-  list(b = b, V = V, n_treated = uniqueN(d[G > 0, id]))
-}
-# Callaway-Sant'Anna main specification (02_cs.R) with analytic SEs; vcov from the influence function
-cs_fit <- function(d, y) {
-  d <- as.data.frame(prep_outcome(d, y))
-  a <- att_gt(yname = y, tname = "t", idname = "id", gname = "G", data = d, control_group = "nevertreated",
-              base_period = "universal", allow_unbalanced_panel = TRUE, est_method = "dr",
-              clustervars = "id", bstrap = FALSE)
-  es <- aggte(a, type = "dynamic", min_e = event_window[1], max_e = event_window[2], na.rm = TRUE, bstrap = FALSE)
-  keep <- es$egt != -1
-  inf <- es$inf.function$dynamic.inf.func.e[, keep, drop = FALSE]
-  V <- crossprod(inf) / nrow(inf)^2
-  b <- setNames(es$att.egt[keep], es$egt[keep]); dimnames(V) <- list(names(b), names(b))
-  stopifnot(all(abs(sqrt(diag(V)) / es$se.egt[keep] - 1) < 0.01))   # vcov matches did's analytic SEs
-  list(b = b, V = V, n_treated = length(unique(d$id[d$G > 0])))
-}
 
 # cohort-level change between consecutive pre-waves, job losers minus never unemployed:
 # k = 1: t-2 -> t-1, k = 2: t-3 -> t-2, k = 3: t-4 -> t-3

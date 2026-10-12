@@ -43,14 +43,15 @@ if (run_checks) check_dcdh(run_dcdh)
 
 tidy <- list(); overall <- list()
 if (do_estimate) {
-for (sm in c("all", "men", "women")) {
-  d <- get_panel(panels, "jobloss_onoff", sm)
+for (tr in c("jobloss_onoff", "pinc25")) for (sm in c("all", "men", "women")) {
+  if (!run_tr(tr)) next
+  d <- get_panel(panels, tr, sm)
   for (y in outcomes) {
-    key <- paste("jobloss_onoff", sm, y, sep = "|")
+    key <- paste(tr, sm, y, sep = "|")
     r <- try_est(run_dcdh(d, y), key)
     if (is.null(r)) next
-    tidy[[key]] <- as_tidy(r$es, "dCDH", "main", "jobloss_onoff", sm, y, r$n_units, r$n_switchers)
-    overall[[key]] <- data.table(estimator = "dCDH", spec = "main", treatment = "jobloss_onoff", sample = sm,
+    tidy[[key]] <- as_tidy(r$es, "dCDH", "main", tr, sm, y, r$n_units, r$n_switchers)
+    overall[[key]] <- data.table(estimator = "dCDH", spec = "main", treatment = tr, sample = sm,
                                  outcome = y, att = r$ate[["Estimate"]], se = r$ate[["SE"]],
                                  p_joint_placebo = r$p_placebo)
   }

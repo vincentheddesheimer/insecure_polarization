@@ -21,6 +21,7 @@ Agreed 7 Oct 2026. This file records every design choice; the scripts in this fo
 | Reemployment | "off" effect of leaving unemployment in fect, plus the paper-style placebo with CS |
 | Household income drop | first above-median (≥10%) drop (`income_hh_rel_decrease_median`), absorbing |
 | Personal income drop | first above-median (≥25%) drop (`income_cat_rel_decrease_median`), absorbing |
+| Large personal income loss (`pinc25`, candidate main treatment) | first wave in which net personal income (background variables, euros) is at least 25% below the directly preceding wave, after an employed wave; absorbing; all estimators, all / men / women |
 | Gender heterogeneity | every job-loss estimator run separately for men and women |
 
 ## Outcomes
@@ -128,11 +129,14 @@ source("code/analyze_did/08_panelmatch.R")  # ~1.5 h with analytic SEs
 source("code/analyze_did/09_compare.R")  # comparison figures and table
 source("code/analyze_did/10_dip.R")      # the t-1 dip: reference-wave contrasts, cohorts, job-loss expectations
 source("code/analyze_did/11_power.R")    # minimum detectable effects
+source("code/analyze_did/12_alt_treatments.R")  # candidate treatments: income drops, job insecurity, hardship
+source("code/analyze_did/13_followups.R")  # transience, periods, PVV rating, income-loss checks
 ```
 
 - **Test mode:** `Sys.setenv(DID_TEST = "1")` runs only distance with fewer bootstrap draws and writes `*_TEST` files.
 - **Fewer outcomes:** `Sys.setenv(DID_OUTCOMES = "distance,spread")`.
 - **Fewer fect methods:** `Sys.setenv(DID_FECT_METHODS = "fe")` (result files are then tagged with the methods).
+- **Fewer treatments:** `Sys.setenv(DID_TREATMENTS = "pinc25")` runs 02-08 for the listed treatments only; their result files are tagged with the treatments, so other runs are never overwritten.
 - **Checks only:** `Sys.setenv(DID_CHECK_ONLY = "1")`; all of them: `Rscript code/analyze_did/00_checks.R`.
 - **Estimates only / figures only:** `DID_NO_FIGURES = "1"` / `DID_FIGURES_ONLY = "1"`. Estimates are saved per outcome (`<estimator>__<outcome>[__<methods>].rds`), so runs for different outcomes can run in parallel; `load_est()` stops if two files hold the same estimates.
 
@@ -148,6 +152,9 @@ The estimation runs on Della; figures and tables are drawn locally from the esti
 - **Submit (login node, from the project folder):** `bash code/analyze_did/della/submit.sh test`, then `... submit.sh full`.
   - The first job is `00_checks.R`; the estimation jobs start only if it passes.
   - Full runs are array jobs with one task per outcome (fect: per outcome × method). Logs go to `code/analyze_did/della/logs/`.
+- **Large income loss (pinc25), all estimators:** `OUTCOME_LIST="distance spread like_min" DID_TREATMENTS=pinc25 bash code/analyze_did/della/submit.sh full` (jobs 15414107-15414114, Oct 12, 2026). Rebuild the panels first (`SCRIPTS=01_sample.R sbatch --export=ALL code/analyze_did/della/run_r.slurm`).
+- **Candidate treatments and follow-ups:** `sbatch code/analyze_did/della/run_alt.slurm` runs 12; `SCRIPTS=13_followups.R sbatch --export=ALL code/analyze_did/della/run_r.slurm` runs 13, which also needs `data/liss_politics_to26.csv` (the build's cleaned politics module, for the PVV rating).
+- **Job limits:** keep time limits above one hour; shorter jobs land in Della's test QOS, which caps the number of jobs per user.
 - **Follow-ups:** `sbatch code/analyze_did/della/run_followup.slurm` runs 10 and 11 (about 1 minute). 10 needs `data/liss_income_to26.csv`, the build's cleaned income module, for the job-loss expectation item (`pr_lose_job`, not in `liss_to26.csv`).
 - **Collect:** copy `results/estimates/` back, then locally run each script with `DID_FIGURES_ONLY = 1`, and `09_compare.R`.
 - **Full run, Oct 7, 2026:** jobs 15192722 (checks) and 15192723–15192729 (99 tasks, all COMPLETED, every check passed, no failed estimation). Longest task per script: fect 1 h 34 min, synthdid 52 min, PanelMatch 18 min, CS 7 min, dCDH 2 min, Sun–Abraham/TWFE and BJS under 1 min. The ledger is `logs/submitted_jobs.csv` in the Della project folder. Code was synced from the uncommitted working tree on branch `fix/build-audit`. fect's diagnostic plots, written during estimation, are in `results/figures/fect_diag/`.

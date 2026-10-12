@@ -47,7 +47,7 @@ if (run_checks) check_fect(run_fect, fect_tidy)
 
 tidy <- list(); overall <- list(); tests <- list()
 # with DID_FECT_METHODS (e.g. one cluster job per method) the files are tagged with the methods
-save_tag <- if (Sys.getenv("DID_FECT_METHODS") != "") paste(methods_run, collapse = "-") else ""
+save_tag <- paste(c(if (Sys.getenv("DID_FECT_METHODS") != "") paste(methods_run, collapse = "-"), if (nzchar(run_tag)) run_tag), collapse = "__")
 save_all <- function() save_est(list(tidy = rbindlist(tidy), overall = rbindlist(overall),
                                      tests = rbindlist(tests, fill = TRUE)), "fect", save_tag)
 
@@ -85,6 +85,7 @@ codings <- c(jobloss = "absorbing", jobloss_onoff = "on/off")
 
 if (do_estimate) {
 for (tr in names(codings)) for (sm in c("all", "men", "women")) {
+  if (!run_tr(tr)) next
   d <- get_panel(panels, tr, sm)
   ms <- if (sm == "all") methods_run else intersect("fe", methods_run)   # gender split: FE only
   for (m in ms) for (y in outcomes) {
@@ -111,12 +112,15 @@ for (tr in names(codings)) for (sm in c("all", "men", "women")) {
   }
 }
 
-# income drops: FE, absorbing
-if ("fe" %in% methods_run) for (tr in c("hh_inc", "inc")) {
-  d <- get_panel(panels, tr)
+# income drops: FE, absorbing (large personal income loss also for men and women)
+inc_runs <- data.table(tr = c("hh_inc", "inc", "pinc25", "pinc25", "pinc25"), sm = c("all", "all", "all", "men", "women"))
+if ("fe" %in% methods_run) for (j in seq_len(nrow(inc_runs))) {
+  tr <- inc_runs$tr[j]; sm <- inc_runs$sm[j]
+  if (!run_tr(tr)) next
+  d <- get_panel(panels, tr, sm)
   for (y in outcomes) {
-    f <- try_est(run_fect(prep_outcome(d, y), y, "fe"), paste("fect", tr, "fe", y))
-    if (!is.null(f)) { record(f, tr, "all", "fe", y); save_all() }
+    f <- try_est(run_fect(prep_outcome(d, y), y, "fe"), paste("fect", tr, sm, "fe", y))
+    if (!is.null(f)) { record(f, tr, sm, "fe", y); save_all() }
   }
 }
 save_all()

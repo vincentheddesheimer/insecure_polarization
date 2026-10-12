@@ -15,8 +15,9 @@ module purge
 module load R/4.6.0
 export RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE
 
-# outcomes from 00_setup.R (single source of truth)
-OUTCOME_LIST=$(DID_NO_FIGURES=1 Rscript -e 'suppressMessages(source("code/analyze_did/00_setup.R")); cat(names(outcome_labels))')
+# outcomes from 00_setup.R (single source of truth), unless OUTCOME_LIST is set, e.g.
+#   OUTCOME_LIST="distance spread like_min" DID_TREATMENTS=pinc25 bash code/analyze_did/della/submit.sh full
+OUTCOME_LIST=${OUTCOME_LIST:-$(DID_NO_FIGURES=1 Rscript -e 'suppressMessages(source("code/analyze_did/00_setup.R")); cat(names(outcome_labels))')}
 N=$(wc -w <<< "$OUTCOME_LIST")
 export OUTCOME_LIST
 if [ "$MODE" = test ]; then export DID_TEST=1; else unset DID_TEST; fi
@@ -25,9 +26,10 @@ if [ "$MODE" = test ]; then export DID_TEST=1; else unset DID_TEST; fi
 declare -A CPUS=([02_cs.R]=8 [03_fect.R]=16 [04_imputation.R]=4 [05_dcdh.R]=4 [06_sunab_twfe.R]=4 [07_synthdid.R]=16 [08_panelmatch.R]=4)
 # (test run, distance: CS 4 min incl. HonestDiD, fect FE 8, BJS 0.5, dCDH 1.3, Sun-Abraham/TWFE 0.4, synthdid 9 with 20 placebo reps,
 #  PanelMatch 11; full runs have 4-5x the bootstrap/placebo draws)
-declare -A TIME=([02_cs.R]=02:00:00 [03_fect.R]=12:00:00 [04_imputation.R]=01:00:00 [05_dcdh.R]=01:00:00 [06_sunab_twfe.R]=01:00:00 [07_synthdid.R]=03:00:00 [08_panelmatch.R]=03:00:00)
+# limits above one hour keep the jobs out of the test QOS, which caps the number of jobs per user
+declare -A TIME=([02_cs.R]=02:00:00 [03_fect.R]=12:00:00 [04_imputation.R]=01:02:00 [05_dcdh.R]=01:02:00 [06_sunab_twfe.R]=01:02:00 [07_synthdid.R]=03:00:00 [08_panelmatch.R]=03:00:00)
 
-checks=$(SCRIPT=00_checks.R sbatch --parsable --job-name=did_00_checks --cpus-per-task=4 --time=01:00:00 \
+checks=$(SCRIPT=00_checks.R sbatch --parsable --job-name=did_00_checks --cpus-per-task=4 --time=01:02:00 \
          --output="$D/logs/%x_%j.out" --export=ALL "$D/run_script.slurm")
 echo "checks: job $checks"
 for s in 02_cs.R 03_fect.R 04_imputation.R 05_dcdh.R 06_sunab_twfe.R 07_synthdid.R 08_panelmatch.R; do

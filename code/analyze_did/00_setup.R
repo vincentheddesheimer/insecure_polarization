@@ -6,6 +6,7 @@
 # Estimation only (e.g. cluster array jobs):    Sys.setenv(DID_NO_FIGURES = "1")
 # Figures only, from saved estimates:           Sys.setenv(DID_FIGURES_ONLY = "1")
 # Known-answer check only (checks.R):           Sys.setenv(DID_CHECK_ONLY = "1")
+# Restrict treatments (files tagged):          Sys.setenv(DID_TREATMENTS = "pinc25")
 
 pacman::p_load(tidyverse, data.table, here)
 here::i_am("code/analyze_did/00_setup.R")
@@ -48,6 +49,12 @@ outcomes <- names(outcome_labels)
 if (Sys.getenv("DID_OUTCOMES") != "") outcomes <- intersect(strsplit(Sys.getenv("DID_OUTCOMES"), ",")[[1]], outcomes)
 if (test_mode) outcomes <- "distance"
 
+# treatments to run (all if unset); results of a restricted run are saved in files tagged with the
+# treatments, so they never overwrite the results of other runs
+treatments_run <- if (Sys.getenv("DID_TREATMENTS") != "") strsplit(Sys.getenv("DID_TREATMENTS"), ",")[[1]] else NULL
+run_tr  <- function(tr) is.null(treatments_run) || tr %in% treatments_run
+run_tag <- if (is.null(treatments_run)) "" else paste(treatments_run, collapse = "-")
+
 # baseline covariates (pre-treatment values, constant within person)
 baseline_covs <- c("agegrp_base", "male_base", "educ_base", "hhsize_base", "inccat_base")
 xformla_base  <- ~ agegrp_base + male_base + educ_base + hhsize_base + inccat_base
@@ -72,7 +79,7 @@ path_tab <- function(name) {
 # Estimates are saved as one file per outcome (results/estimates/<est>/<est>__<outcome>[__<tag>].rds),
 # so runs for different outcomes (or, with a tag, different parts of one outcome), e.g. parallel
 # cluster jobs, never overwrite each other. load_est() stops if two files hold the same estimates.
-save_est <- function(res, estimator, tag = "") {
+save_est <- function(res, estimator, tag = run_tag) {
   for (y in outcomes) {
     part <- lapply(res, function(x) if (is.data.frame(x) && "outcome" %in% names(x)) x[outcome == y] else x)
     # skip outcomes without results (e.g. checkpoints before an outcome has run) so that earlier
@@ -148,6 +155,45 @@ sunab_rhs <- function(d) {
   if (length(bins)) sprintf("sunab(G_sa, t, bin.rel = list(%s))", paste(bins, collapse = ", ")) else "sunab(G_sa, t)"
 }
 
+# linear combination w'b of event-study coefficients (names = event times; -1 is the reference, 0)
+lincom <- function(b, V, w) {
+  w <- w[names(w) != "-1"]
+  c(estimate = sum(w * b[names(w)]), se = sqrt(drop(t(w) %*% V[names(w), names(w)] %*% w)))
+}
+ev <- function(e, x) setNames(rep(x, length(e)), e)
+
+# Sun-Abraham fit as in 06_sunab_twfe.R; returns event-time coefficients and their vcov (10, 12)
+sa_fit <- function(d, y) {
+  d <- prep_outcome(d, y)
+  d[, G_sa := fifelse(G > 0, G, 10000L)][, rel := fifelse(G > 0, t - G, NA_integer_)]
+  m <- fixest::feols(as.formula(paste(y, "~", sunab_rhs(d), "| id + t")), data = d, cluster = ~id)
+  s <- summary(m)
+  # fixest reports event-time coefficients aggregated over cohorts (weights = observations per
+  # cohort x event time), but vcov() is that of the cohort x event-time coefficients: rebuild the
+  # aggregation matrix A, then b = A b_raw, V = A V_raw A' (checked against fixest's own output)
+  raw <- names(m$coefficients); per <- sub(":cohort::.*", "", raw)
+  n <- colSums(model.matrix(m, type = "rhs") != 0)[raw]
+  A <- t(sapply(names(coef(s)), function(p) ifelse(per == p, n, 0) / sum(n[per == p])))
+  b <- drop(A %*% m$coefficients); V <- A %*% vcov(m) %*% t(A)
+  stopifnot(max(abs(b - coef(s))) < 1e-8, max(abs(sqrt(diag(V)) - fixest::se(s))) < 1e-8)
+  names(b) <- sub(".*::", "", names(coef(s))); dimnames(V) <- list(names(b), names(b))
+  list(b = b, V = V, n_treated = uniqueN(d[G > 0, id]))
+}
+# Callaway-Sant'Anna main specification (02_cs.R) with analytic SEs; vcov from the influence function (10, 12)
+cs_fit <- function(d, y) {
+  d <- as.data.frame(prep_outcome(d, y))
+  a <- did::att_gt(yname = y, tname = "t", idname = "id", gname = "G", data = d, control_group = "nevertreated",
+              base_period = "universal", allow_unbalanced_panel = TRUE, est_method = "dr",
+              clustervars = "id", bstrap = FALSE)
+  es <- did::aggte(a, type = "dynamic", min_e = event_window[1], max_e = event_window[2], na.rm = TRUE, bstrap = FALSE)
+  keep <- es$egt != -1
+  inf <- es$inf.function$dynamic.inf.func.e[, keep, drop = FALSE]
+  V <- crossprod(inf) / nrow(inf)^2
+  b <- setNames(es$att.egt[keep], es$egt[keep]); dimnames(V) <- list(names(b), names(b))
+  stopifnot(all(abs(sqrt(diag(V)) / es$se.egt[keep] - 1) < 0.01))   # vcov matches did's analytic SEs
+  list(b = b, V = V, n_treated = length(unique(d$id[d$G > 0])))
+}
+
 # which treatment/sample combinations each estimator runs (subset in test mode via outcomes only)
 runs_absorbing <- tribble(
   ~treatment, ~sample,
@@ -155,7 +201,10 @@ runs_absorbing <- tribble(
   "jobloss",  "men",
   "jobloss",  "women",
   "hh_inc",   "all",
-  "inc",      "all"
+  "inc",      "all",
+  "pinc25",   "all",
+  "pinc25",   "men",
+  "pinc25",   "women"
 )
 
 get_panel <- function(panels, treatment, sample = "all") {
