@@ -46,6 +46,14 @@ outcome_labels <- c(
   red_distance_ethnicity_rel_mean = "Heterophily: ethnicity"
 )
 outcomes <- names(outcome_labels)
+# mechanism outcomes for the APSR note (14_apsr_note.R): confidence in institutions and satisfaction,
+# 0-10 (politics module). Kept in the panels but not in the estimator scripts' outcome loops.
+mechanism_labels <- c(
+  confidence_index = "Confidence in government, parliament, politicians and parties (mean)",
+  confidence_gov   = "Confidence in the government",
+  satisfaction_gov = "Satisfaction with the government",
+  satisfaction_dem = "Satisfaction with democracy"
+)
 if (Sys.getenv("DID_OUTCOMES") != "") outcomes <- intersect(strsplit(Sys.getenv("DID_OUTCOMES"), ",")[[1]], outcomes)
 if (test_mode) outcomes <- "distance"
 

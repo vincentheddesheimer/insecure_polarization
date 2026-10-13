@@ -484,6 +484,8 @@ df7 <- df6 |>
          # outcomes
          partisan_affect, delta_partisan_affect, spread, delta_spread, distance, like_max, like_min,
          delta_distance, generalized_trust, delta_generalized_trust,
+         confidence_gov, confidence_parl, confidence_politicians, confidence_parties, confidence_index,
+         satisfaction_gov, satisfaction_dem,
          little_concern_for_others, interested_in_others, comfy_around_people, insult_people,
          sympathisze_w_others_feelings, not_interested_in_others_problems, talk_to_different_people_parties,
          not_interested_in_others, feel_others_emotions, quiet_around_strangers,

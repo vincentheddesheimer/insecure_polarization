@@ -30,6 +30,8 @@ Agreed 7 Oct 2026. This file records every design choice; the scripts in this fo
 - **In-/outgroup feelings:** `like_max`, `like_min`.
 - **Trust:** `generalized_trust`.
 - **Heterophily:** `red_overall_mean_distance` and the four components `red_distance_age_rel_mean`, `red_distance_gender_mean`, `red_distance_education_rel_mean`, `red_distance_ethnicity_rel_mean`.
+- **Mechanism outcomes (APSR note only, `mechanism_labels` in `00_setup.R`):** `confidence_index` (mean confidence in the government, parliament, politicians and political parties, 0–10, at least three items answered), `confidence_gov`, `satisfaction_gov`, `satisfaction_dem`. Not in the estimator scripts' outcome loops.
+- **Party weights (build, changed Oct 14, 2026):** distance, spread and partisan affect weight parties by their vote share in the last national election *before* fieldwork (previously the following election for the waves fielded Dec 2009, 2011, 2016 and 2020), rescaled to sum to one over the parties each respondent rated (previously raw national shares). Within-wave correlation of old and new distance: 0.96–0.99. Estimates from 02–11 on Della predate this change; 01, 12, 13 and 14 were rerun locally on the corrected data.
 
 ## Shared settings
 
@@ -164,5 +166,13 @@ The estimation runs on Della; figures and tables are drawn locally from the esti
 - **Estimates:** `.rds` in `results/estimates/<estimator>/`.
 - **Figures:** `.pdf` in `results/figures/`, with `haschaR::theme_hanno()` and no end caps on error bars.
 - **Tables:** `.tex` in `results/tables/`.
-- **Overleaf:** nothing is written to Overleaf automatically.
+- **Overleaf:** nothing is written to Overleaf automatically, except by `14_apsr_note.R`, which writes the APSR note's exhibits and `numbers.tex` to `Apps/Overleaf/HB_insecure_polarization/apsr/` (agreed Oct 13, 2026).
 - **Packages:** pinned with renv (`renv.lock` in the repo root).
+
+## APSR research note (`14_apsr_note.R`, October 2026)
+
+- **Treatments:** large personal income loss (`pinc25`, leads) and job loss (`jobloss`, supporting evidence).
+- **Main estimator:** Callaway–Sant'Anna, never-treated controls, universal base period, no covariates, analytic (influence-function) standard errors so that window averages have their full covariance. Summaries: average over waves 0–8 and over waves 2–4.
+- **Robustness, one check per identifying assumption:** not-yet-treated controls (comparison group), baseline covariates (selection on observables), waves −5 to −3 as baseline (anticipation), imputation estimator (parallel trends in all waves; more efficient), Rambachan–Roth relative-magnitude and smoothness bounds (size of violations). Sun–Abraham, TWFE, synthdid, PanelMatch, dCDH and fect are not used in the note.
+- **Inputs:** the panels (01) and the saved results of 10, 12 and 13, which must be rerun on the same data. Fits and bounds are cached in `results/estimates/apsr/refits.rds`; `DID_APSR_REFIT=1` redoes them (about 45 minutes locally, most of it the relative-magnitude bounds).
+- **Outputs:** figures, tables and `numbers.tex` (every number in the note's text as a LaTeX macro) in the Overleaf project's `apsr/` folder.

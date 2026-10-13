@@ -1390,23 +1390,21 @@ vs <- fread(here::here("data", "raw", "vote_shares.csv")) |>
   ) |>
   select(party, election_year, share)
 
-# add vote share to df
+# add vote share to df: shares of the last national election before fieldwork. Waves are
+# fielded December to March (wave w from December of 1999 + w), so e.g. wave 10 (Dec 2009) uses
+# the 2006 election, not the June 2010 one, and wave 24 (Dec 2023) the November 2023 election.
+# Elections: Nov 2006, Jun 2010, Sep 2012, Mar 2017, Mar 2021, Nov 2023, Oct 2025.
+election_before <- function(w) case_when(w <= 10 ~ 2006, w <= 12 ~ 2010, w <= 17 ~ 2012, w <= 21 ~ 2017,
+                                         w <= 23 ~ 2021, w <= 25 ~ 2023, TRUE ~ 2025)
 df <- df |>
-  mutate(election_year = ifelse(wave < 10, 
-                                2006,
-                                ifelse(wave >= 10 & wave < 12,
-                                       2010,
-                                       ifelse(wave >= 12 & wave < 17,
-                                              2012,
-                                              ifelse(wave >= 17 & wave < 21,
-                                                     2017,
-                                                     ifelse(wave >= 21 & wave < 24,
-                                                            2021,
-                                                            # wave 26 is fielded after the Oct 2025 election
-                                                            ifelse(wave >= 24 & wave < 26,
-                                                                   2023,
-                                                                   2025))))))) |>
-  left_join(vs, by = c("party", "election_year"))
+  mutate(election_year = election_before(as.integer(wave))) |>
+  left_join(vs, by = c("party", "election_year")) |>
+  # weights: vote shares rescaled to sum to one over the parties this respondent rated
+  # (Wagner 2021); parties without a share in that election (founded since) get no weight
+  group_by(nomem_encr, wave) |>
+  mutate(w_rated = ifelse(!is.na(thermo_score) & !is.na(share), share, NA_real_),
+         w_rated = w_rated / sum(w_rated, na.rm = TRUE)) |>
+  ungroup()
 
 # Calculate share of voters for Volt and JA21 (since 2018)
 # MH: Unnecessary since there are now vote shares available 21 and 23
@@ -1463,12 +1461,17 @@ ingroup <- df |>
 df <- df |>
   left_join(ingroup, by = c("nomem_encr", "wave")) |>
   mutate(
-    # denominator for party weights (1-ingroup-share)
-    total_outgroup_share = 1 - ingroup_share,
     # distance ingroup - outgroup
-    distance_to_ingroup_score = ingroup_score - thermo_score,
-    weighted_distance_to_ingroup_score = distance_to_ingroup_score * share / (1-ingroup_share)
+    distance_to_ingroup_score = ingroup_score - thermo_score
     )
+
+# out-party weights: vote shares rescaled to sum to one over the out-parties this partisan rated
+df <- df |>
+  group_by(nomem_encr, wave) |>
+  mutate(w_out = ifelse(partisan_comb != 1 & !is.na(thermo_score) & !is.na(share), share, NA_real_),
+         w_out = w_out / sum(w_out, na.rm = TRUE),
+         weighted_distance_to_ingroup_score = distance_to_ingroup_score * w_out) |>
+  ungroup()
 
 ## Partisan affect score ---------------------------------------------------
 
@@ -1490,19 +1493,20 @@ pol <- pol |>
 
 ## Spread ------------------------------------------------------------------
 
+# respondents without any rated party that has a vote share get NA
 rated <- df |>
   group_by(nomem_encr, wave) |>
-  summarise(n_rated = sum(!is.na(thermo_score)), .groups = "drop")
+  summarise(n_rated = sum(!is.na(w_rated)), .groups = "drop")
 
 # calculate spread score for each individual
 # (see Wagner 2021)
 spread <- df |>
   group_by(nomem_encr, wave) |>
   # weighted mean of the thermo scores
-  mutate(mean_like = sum(share * thermo_score, na.rm = TRUE)) |>
+  mutate(mean_like = sum(w_rated * thermo_score, na.rm = TRUE)) |>
   ungroup() |>
   # weighted spread
-  mutate(weighted_spread = (thermo_score - mean_like)^2 * share) |>
+  mutate(weighted_spread = (thermo_score - mean_like)^2 * w_rated) |>
   # sum up weighted spread scores for each individual in each wave
   group_by(nomem_encr, wave) |>
   summarize(spread = sqrt(sum(weighted_spread, na.rm = TRUE)))
@@ -1531,7 +1535,7 @@ distance <- df |>
   # merge with other variables
   right_join(df, by = c("nomem_encr", "wave")) |>
   # calculate weighted distance to max score
-  mutate(weighted_distance_to_max_score = (thermo_score - like_max)^2 * share) |> 
+  mutate(weighted_distance_to_max_score = (thermo_score - like_max)^2 * w_rated) |> 
   # sum up weighted distance scores for each individual in each wave
   group_by(nomem_encr, wave) |>
   summarize(distance = sqrt(sum(weighted_distance_to_max_score, na.rm = TRUE)))
@@ -1577,6 +1581,21 @@ min <- df |>
 pol <- pol |>
   left_join(max, by = c("nomem_encr", "wave")) |>
   left_join(min, by = c("nomem_encr", "wave"))
+
+# Confidence in institutions and satisfaction (0-10; -9 = don't know, 999 = missing) -----------
+clean_0_10 <- function(x) { x <- suppressWarnings(as.numeric(x)); ifelse(x %in% 0:10, x, NA_real_) }
+pol <- pol |>
+  mutate(
+    confidence_gov         = clean_0_10(conf_gov),
+    confidence_parl        = clean_0_10(conf_parl),
+    confidence_politicians = clean_0_10(conf_politicians),
+    confidence_parties     = clean_0_10(conf_parties),
+    satisfaction_gov       = clean_0_10(satisfac_gov),
+    satisfaction_dem       = clean_0_10(satisfac_dem)
+  )
+# index: mean confidence in the government, parliament, politicians and parties (at least 3 items)
+conf_items <- c("confidence_gov", "confidence_parl", "confidence_politicians", "confidence_parties")
+pol$confidence_index <- ifelse(rowSums(!is.na(pol[, conf_items])) >= 3, rowMeans(pol[, conf_items], na.rm = TRUE), NA_real_)
 
 # write .csv
 fwrite(pol, file = file.path(liss_clean, "liss_politics_to26.csv"))

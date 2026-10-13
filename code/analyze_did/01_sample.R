@@ -17,7 +17,7 @@ setorder(liss, id, t)
 liss[, `:=`(emp = occupation %in% 1:3, unemp = occupation %in% c(4, 6))]
 liss <- liss[age >= 18 & age <= 65]
 
-keep_cols <- c("id", "t", "wave", names(outcome_labels), "occupation", "emp", "unemp", "age", "male",
+keep_cols <- c("id", "t", "wave", names(outcome_labels), names(mechanism_labels), "occupation", "emp", "unemp", "age", "male",
                "education_cat", "no_hh", "net_monthly_income_cat",
                "income_hh_rel_decrease_median", "income_cat_rel_decrease_median", "net_monthly_income")
 liss <- liss[, ..keep_cols]

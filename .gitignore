@@ -9,3 +9,6 @@ results/estimates/
 results/**/*_TEST.*
 code/analyze_did/della/logs/
 code/analyze_did/della/*.log
+# LISS module extracts used by 10_dip.R, 12_alt_treatments.R, 13_followups.R (licensed microdata)
+data/liss_income_to26.csv
+data/liss_politics_to26.csv
