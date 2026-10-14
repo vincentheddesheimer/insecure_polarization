@@ -86,13 +86,7 @@ th <- melt(pol[, c("nomem_encr", "wave", paste0("thermo_", parties)), with = FAL
            variable.name = "party", value.name = "rating", variable.factor = FALSE)
 th[, `:=`(party = sub("thermo_", "", party), rating = in_range(rating, 0, 10))]
 th <- th[!is.na(rating)]
-cabinet <- rbind(
-  CJ(wave = 8:10,              party = c("CDA", "PvdA", "CU")),          # Balkenende IV
-  CJ(wave = 11:12,             party = c("VVD", "CDA")),                 # Rutte I (PVV support agreement, not in cabinet)
-  CJ(wave = c(13:14, 16:17),   party = c("VVD", "PvdA")),                # Rutte II
-  CJ(wave = 18:24,             party = c("VVD", "CDA", "D66", "CU")),    # Rutte III and IV
-  CJ(wave = 25,                party = c("PVV", "VVD", "NSC", "BBB")))   # Schoof
-main_party <- data.table(wave = c(8:14, 16:25), party = c(rep("CDA", 3), rep("VVD", 13), "PVV"))  # largest party in cabinet
+# cabinet and main_party: 00_setup.R
 th[cabinet, on = c("wave", "party"), gov := TRUE][is.na(gov), gov := FALSE]
 ratings <- th[wave %in% cabinet$wave, .(
   gov_mean  = if (any(gov)) mean(rating[gov]) else NA_real_,

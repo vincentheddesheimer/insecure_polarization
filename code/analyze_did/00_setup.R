@@ -169,6 +169,18 @@ shift_between <- function(d) copy(d)[G > 0, G := G - 1L][, D := as.integer(G > 0
 election_before <- function(w) fcase(w <= 10, 2006L, w <= 12, 2010L, w <= 17, 2012L, w <= 21, 2017L,
                                      w <= 23, 2021L, w <= 25, 2023L, default = 2025L)
 
+# Cabinets at the time of politics fieldwork (December to March), by wave. Caretaker cabinets that
+# consist of the coalition parties are kept (Rutte III in 2020/21, Rutte IV in 2023/24). Wave 26
+# (2025/26) has none: the PVV and NSC had left the Schoof cabinet in 2025 and a new government was
+# being formed after the October 2025 election. main_party: the largest party in the cabinet.
+cabinet <- rbind(
+  CJ(wave = 8:10,              party = c("CDA", "PvdA", "CU")),          # Balkenende IV
+  CJ(wave = 11:12,             party = c("VVD", "CDA")),                 # Rutte I (PVV support agreement, not in cabinet)
+  CJ(wave = c(13:14, 16:17),   party = c("VVD", "PvdA")),                # Rutte II
+  CJ(wave = 18:24,             party = c("VVD", "CDA", "D66", "CU")),    # Rutte III and IV
+  CJ(wave = 25,                party = c("PVV", "VVD", "NSC", "BBB")))   # Schoof
+main_party <- data.table(wave = c(8:14, 16:25), party = c(rep("CDA", 3), rep("VVD", 13), "PVV"))
+
 # Cached results carry a tag of the panels they were computed from and of the definitions in this
 # version of the code; a cache with another tag is ignored and recomputed (14, 15). Bump def_version
 # whenever a definition changes that the panels do not reflect.
