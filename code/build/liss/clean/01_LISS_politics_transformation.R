@@ -213,7 +213,6 @@ pol <-
     elect_today_party_other_08 = `059`,
     elect_today_party_other_11 = `172`,
     elect_today_party_other_13 = `210`,
-    elect_today_party_other_22 = `210`,
     elect_today_notvote = `245`,
     elect_today_VVD = `246`,
     elect_today_D66 = `251`,
@@ -612,9 +611,9 @@ pol <-
 ## Vote choice last election -----------------------------------------------
     # CDA (Christian democrat party)
     party_last_parl_elect_CDA = ifelse((party_last_parl_elect_Nov2006 == 1 & !is.na(party_last_parl_elect_Nov2006)) |
-                                         (party_last_parl_elect_Jun2010 ==  4 & !is.na(party_last_parl_elect_Nov2006)) |
-                                         (party_last_parl_elect_Sep2012 ==  5 & !is.na(party_last_parl_elect_Nov2006)) |
-                                         (party_last_parl_elect_Mar2017 == 3 & !is.na(party_last_parl_elect_Nov2006)),
+                                         (party_last_parl_elect_Jun2010 ==  4 & !is.na(party_last_parl_elect_Jun2010)) |
+                                         (party_last_parl_elect_Sep2012 ==  5 & !is.na(party_last_parl_elect_Sep2012)) |
+                                         (party_last_parl_elect_Mar2017 == 3 & !is.na(party_last_parl_elect_Mar2017)),
                                        1,0),
     # PvdA (labor party)
     party_last_parl_elect_PvdA = ifelse((party_last_parl_elect_Nov2006 == 2 & !is.na(party_last_parl_elect_Nov2006)) |
@@ -797,7 +796,7 @@ pol <-
     # Groep Wilders \ Partij voor de Vrijheid (Wilders' freedom party)
     vote_today_PVV = ifelse((elect_today_party_08 == 12 & !is.na(elect_today_party_08))|
                               (elect_today_party_11 == 5 & !is.na(elect_today_party_11))|
-                              (elect_today_party_13 == 3 & !is.na(elect_today_party_13))|
+                              (elect_today_party_13 == 5 & !is.na(elect_today_party_13))|   # 3 is VVD
                               (elect_today_party_17 == 4 & !is.na(elect_today_party_17))|
                               (elect_today_party_18 == 3 & !is.na(elect_today_party_18)),
                             1,0),
@@ -908,7 +907,7 @@ pol <-
     # GroenLinks & PvdA joint list (24-26)
     partisan_GL_PvdA = ifelse(partisan_party_18 == 19,1,0),    
     # other party
-    partisan_other = ifelse((partisan_party_12 == 12 & !is.na(partisan_party_12))|
+    partisan_other = ifelse((partisan_party_12 == 11 & !is.na(partisan_party_12))|   # 11 is "other" in wave 12
                               (partisan_party_13 == 12 & !is.na(partisan_party_13))|
                               (partisan_party_18 == 14 & !is.na(partisan_party_18)),
                             1,0),
@@ -1297,9 +1296,9 @@ thermo <- pol |>
     id = paste0(nomem_encr,"_",wave),
     # values to NA
     thermo_score = as.numeric(thermo_score),
-    thermo_score = na_if(thermo_score, -9),
-    thermo_score = na_if(thermo_score, 999),
-    thermo_score = ifelse(thermo_score == 11, 10, thermo_score)
+    # valid ratings are 0-10; -9 and 999 are missing, and 11 (87 ratings of DENK, VNL and FvD in
+    # waves 17-18) is not a valid code, so it is missing as well (it was recoded to 10 before Oct 2026)
+    thermo_score = ifelse(thermo_score %in% 0:10, thermo_score, NA_real_)
     )
 
 # get duplicates
@@ -1493,7 +1492,8 @@ pol <- pol |>
 
 ## Spread ------------------------------------------------------------------
 
-# respondents without any rated party that has a vote share get NA
+# distance and spread need ratings of at least two parties with a vote share (with one, distance is
+# mechanically zero or the gap to an unweighted most-liked party)
 rated <- df |>
   group_by(nomem_encr, wave) |>
   summarise(n_rated = sum(!is.na(w_rated)), .groups = "drop")
@@ -1513,7 +1513,7 @@ spread <- df |>
 
 spread <- spread |> ungroup() |>
   left_join(rated, by = c("nomem_encr", "wave")) |>
-  mutate(spread = ifelse(n_rated == 0, NA_real_, spread)) |>
+  mutate(spread = ifelse(n_rated < 2, NA_real_, spread)) |>
   select(-n_rated)
 
 # merge
@@ -1542,7 +1542,7 @@ distance <- df |>
 
 distance <- distance |> ungroup() |>
   left_join(rated, by = c("nomem_encr", "wave")) |>
-  mutate(distance = ifelse(n_rated == 0, NA_real_, distance)) |>
+  mutate(distance = ifelse(n_rated < 2, NA_real_, distance)) |>
   select(-n_rated)
 
 # merge
@@ -1596,6 +1596,18 @@ pol <- pol |>
 # index: mean confidence in the government, parliament, politicians and parties (at least 3 items)
 conf_items <- c("confidence_gov", "confidence_parl", "confidence_politicians", "confidence_parties")
 pol$confidence_index <- ifelse(rowSums(!is.na(pol[, conf_items])) >= 3, rowMeans(pol[, conf_items], na.rm = TRUE), NA_real_)
+
+# Missing-value codes in the raw items (-9 don't know, 99/999 missing; the codes change between
+# waves) to NA, so that the extract can be used without further cleaning. Valid ranges checked
+# against the item labels; the thermometers of parties and leaders are 0-10.
+in_range <- function(x, lo, hi) { x <- suppressWarnings(as.numeric(x)); ifelse(x >= lo & x <= hi, x, NA_real_) }
+valid_ranges <- list(
+  list(cols = c(grep("^thermo_", names(pol), value = TRUE), "lr_scale", grep("^(satisfac|conf)_", names(pol), value = TRUE)), lo = 0, hi = 10),
+  list(cols = c("pref_redistribution", "pref_immigrant_adapt", "foreign_toomany"), lo = 1, hi = 5),
+  list(cols = c("politics_interest", "news_interest"), lo = 1, hi = 3),
+  list(cols = c("partisan", "parties_dontcare_myopinion", "parliamentarians_dontcare_myopinion", "noinfluence_on_pol"), lo = 1, hi = 2),
+  list(cols = c("news_tv_radio", "news_internet", "news_socialmedia"), lo = 0, hi = 1))
+for (r in valid_ranges) for (v in intersect(r$cols, names(pol))) pol[[v]] <- in_range(pol[[v]], r$lo, r$hi)
 
 # write .csv
 fwrite(pol, file = file.path(liss_clean, "liss_politics_to26.csv"))

@@ -364,6 +364,38 @@
       "Maintainer": "Serguei Sokol <sokol@insa-toulouse.fr>",
       "Repository": "CRAN"
     },
+    "DiceKriging": {
+      "Package": "DiceKriging",
+      "Version": "1.6.1",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "methods"
+      ],
+      "Imports": [
+        null
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "rgenoud (>= 5.8-2.0)",
+        "foreach",
+        "doParallel",
+        "testthat",
+        "numDeriv"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-2 | GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "ECOSolveR": {
       "Package": "ECOSolveR",
       "Version": "0.6.1",
@@ -2028,6 +2060,48 @@
       "Maintainer": "Max Kuhn <mxkuhn@gmail.com>",
       "Repository": "CRAN"
     },
+    "causalweight": {
+      "Package": "causalweight",
+      "Version": "1.1.6",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.5.0)",
+        "ranger"
+      ],
+      "Imports": [
+        "mvtnorm",
+        "np",
+        "stats",
+        "utils",
+        "hdm",
+        "clubSandwich",
+        "glmnet",
+        "xgboost",
+        "kernlab",
+        "fastDummies",
+        "grf",
+        "checkmate",
+        "nnls",
+        "sandwich"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        null
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "MIT + file LICENSE",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "cellranger": {
       "Package": "cellranger",
       "Version": "1.1.0",
@@ -2320,6 +2394,56 @@
       "Maintainer": "Davis Vaughan <davis@posit.co>",
       "Repository": "CRAN"
     },
+    "clubSandwich": {
+      "Package": "clubSandwich",
+      "Version": "0.7.0",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.0.0)"
+      ],
+      "Imports": [
+        "stats",
+        "sandwich",
+        "lifecycle"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "Formula",
+        "knitr",
+        "testthat",
+        "rmarkdown",
+        "covr",
+        "AER",
+        "carData",
+        "estimatr",
+        "fixest",
+        "geepack",
+        "ivreg",
+        "Matrix",
+        "lme4",
+        "metafor",
+        "metadat",
+        "mlmRev",
+        "mmrm",
+        "nlme",
+        "plm (>= 1.6-4)",
+        "robumeta",
+        "zoo"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "codetools": {
       "Package": "codetools",
       "Version": "0.2-20",
@@ -2578,6 +2702,75 @@
       "Author": "Gábor Csárdi [aut, cre], Brodie Gaslam [ctb], Posit Software, PBC [cph, fnd]",
       "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
       "Repository": "CRAN"
+    },
+    "crs": {
+      "Package": "crs",
+      "Version": "0.15.46",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        null
+      ],
+      "Imports": [
+        "boot",
+        "stats",
+        "quantreg"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "ggplot2",
+        "knitr",
+        "logspline",
+        "MASS",
+        "quadprog",
+        "rgl",
+        "rmarkdown",
+        "testthat (>= 3.0.0)"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL (>= 3)",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
+    "cubature": {
+      "Package": "cubature",
+      "Version": "2.1.4.1",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        null
+      ],
+      "Imports": [
+        "Rcpp"
+      ],
+      "LinkingTo": [
+        "Rcpp"
+      ],
+      "Suggests": [
+        "testthat",
+        "knitr",
+        "mvtnorm",
+        "bench",
+        "rmarkdown"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "curl": {
       "Package": "curl",
@@ -3393,6 +3586,41 @@
       "Author": "Thomas Lin Pedersen [cre, aut] (<https://orcid.org/0000-0002-5147-4711>), Berendea Nicolae [aut] (Author of the ColorSpace C++ library), Romain François [aut] (<https://orcid.org/0000-0002-2444-4226>), Posit, PBC [cph, fnd]",
       "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
       "Repository": "CRAN"
+    },
+    "fastDummies": {
+      "Package": "fastDummies",
+      "Version": "1.7.6",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 2.10)"
+      ],
+      "Imports": [
+        "data.table",
+        "tibble",
+        "stringr"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "testthat (>= 2.1.0)",
+        "knitr",
+        "rmarkdown",
+        "covr",
+        "spelling",
+        "dplyr"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "MIT + file LICENSE",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "fastglm": {
       "Package": "fastglm",
@@ -4407,6 +4635,47 @@
       "Author": "Mark van der Loo [aut, cre], David Turner [ctb]",
       "Repository": "CRAN"
     },
+    "grf": {
+      "Package": "grf",
+      "Version": "2.6.1",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.5.0)"
+      ],
+      "Imports": [
+        "DiceKriging",
+        "lmtest",
+        "Matrix",
+        "methods",
+        "Rcpp (>= 0.12.15)",
+        "sandwich (>= 2.4-0)"
+      ],
+      "LinkingTo": [
+        "Rcpp",
+        "RcppEigen"
+      ],
+      "Suggests": [
+        "DiagrammeR",
+        "MASS",
+        "policytree",
+        "rdrobust",
+        "survival (>= 3.2-8)",
+        "testthat (>= 3.0.4)",
+        "knitr",
+        "rmarkdown"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "gridExtra": {
       "Package": "gridExtra",
       "Version": "2.3",
@@ -4608,6 +4877,45 @@
       "Author": "Hadley Wickham [aut, cre], Evan Miller [aut, cph] (Author of included ReadStat code), Danny Smith [aut], Posit Software, PBC [cph, fnd]",
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
+    },
+    "hdm": {
+      "Package": "hdm",
+      "Version": "0.3.2",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.0.0)"
+      ],
+      "Imports": [
+        "MASS",
+        "glmnet",
+        "ggplot2",
+        "checkmate",
+        "Formula",
+        "methods"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "testthat",
+        "knitr",
+        "rmarkdown",
+        "formatR",
+        "xtable",
+        "mvtnorm",
+        "markdown"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "MIT + file LICENSE",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "here": {
       "Package": "here",
@@ -5375,6 +5683,37 @@
       "Author": "Hao Zhu [aut, cre] (<https://orcid.org/0000-0002-3386-6076>), Thomas Travison [ctb], Timothy Tsai [ctb], Will Beasley [ctb], Yihui Xie [ctb], GuangChuang Yu [ctb], Stéphane Laurent [ctb], Rob Shepherd [ctb], Yoni Sidi [ctb], Brian Salzer [ctb], George Gui [ctb], Yeliang Fan [ctb], Duncan Murdoch [ctb], Vincent Arel-Bundock [ctb], Bill Evans [ctb]",
       "Maintainer": "Hao Zhu <haozhu233@gmail.com>",
       "Repository": "CRAN"
+    },
+    "kernlab": {
+      "Package": "kernlab",
+      "Version": "0.9.33",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 2.10)"
+      ],
+      "Imports": [
+        "methods",
+        "stats",
+        "grDevices",
+        "graphics"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        null
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-2",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "knitr": {
       "Package": "knitr",
@@ -6569,6 +6908,76 @@
       "Author": "Brian Ripley [aut, cre, cph], William Venables [cph]",
       "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
       "Repository": "CRAN"
+    },
+    "nnls": {
+      "Package": "nnls",
+      "Version": "1.6",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        null
+      ],
+      "Imports": [
+        null
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "bvls",
+        "quadprog"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL (>= 2)",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
+    "np": {
+      "Package": "np",
+      "Version": "0.70.5",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.5.0)"
+      ],
+      "Imports": [
+        "boot",
+        "cubature",
+        "methods",
+        "quadprog",
+        "quantreg",
+        "stats",
+        "crs (>=\n0.15-44)"
+      ],
+      "LinkingTo": [
+        "crs (>= 0.15-44)"
+      ],
+      "Suggests": [
+        "MASS",
+        "logspline",
+        "ks",
+        "testthat",
+        "withr",
+        "knitr",
+        "rmarkdown",
+        "rgl"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "numDeriv": {
       "Package": "numDeriv",
@@ -8052,6 +8461,34 @@
       "NeedsCompilation": "yes",
       "Repository": "CRAN"
     },
+    "quadprog": {
+      "Package": "quadprog",
+      "Version": "1.5.8",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.1.0)"
+      ],
+      "Imports": [
+        null
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        null
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL (>= 2)",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
+    },
     "quantreg": {
       "Package": "quantreg",
       "Version": "6.1",
@@ -8126,6 +8563,37 @@
       "NeedsCompilation": "yes",
       "Author": "Thomas Lin Pedersen [cre, aut] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Maxim Shemanarev [aut, cph] (Author of AGG), Tony Juricic [ctb, cph] (Contributor to AGG), Milan Marusinec [ctb, cph] (Contributor to AGG), Spencer Garrett [ctb] (Contributor to AGG), Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Repository": "CRAN"
+    },
+    "ranger": {
+      "Package": "ranger",
+      "Version": "0.18.0",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 3.1)"
+      ],
+      "Imports": [
+        "Rcpp (>= 0.11.2)",
+        "Matrix"
+      ],
+      "LinkingTo": [
+        "Rcpp",
+        "RcppEigen"
+      ],
+      "Suggests": [
+        "survival",
+        "testthat"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "GPL-3",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "rappdirs": {
       "Package": "rappdirs",
@@ -10800,6 +11268,51 @@
       "Author": "Yihui Xie [aut, cre, cph] (ORCID: <https://orcid.org/0000-0003-0645-5666>, URL: https://yihui.org), Wush Wu [ctb], Daijiang Li [ctb], Xianying Tan [ctb], Salim Brüggemann [ctb] (ORCID: <https://orcid.org/0000-0002-5329-5987>), Christophe Dervieux [ctb]",
       "Maintainer": "Yihui Xie <xie@yihui.name>",
       "Repository": "CRAN"
+    },
+    "xgboost": {
+      "Package": "xgboost",
+      "Version": "3.2.1.1",
+      "Source": "Repository",
+      "Priority": null,
+      "Depends": [
+        "R (>= 4.3.0)"
+      ],
+      "Imports": [
+        "Matrix (>= 1.1-0)",
+        "methods",
+        "data.table (>= 1.9.6)",
+        "jsonlite\n(>= 1.0)"
+      ],
+      "LinkingTo": [
+        null
+      ],
+      "Suggests": [
+        "knitr",
+        "rmarkdown",
+        "ggplot2 (>= 1.0.1)",
+        "DiagrammeR (>= 0.9.0)",
+        "DiagrammeRsvg",
+        "rsvg",
+        "htmlwidgets",
+        "Ckmeans.1d.dp (>= 3.3.1)",
+        "vcd\n(>= 1.3)",
+        "testthat",
+        "igraph (>= 1.0.1)",
+        "float",
+        "titanic",
+        "RhpcBLASctl",
+        "survival"
+      ],
+      "Enhances": [
+        null
+      ],
+      "License": "Apache License (== 2.0) | file LICENSE",
+      "License_is_FOSS": null,
+      "License_restricts_use": null,
+      "OS_type": null,
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Type": "source"
     },
     "xml2": {
       "Package": "xml2",

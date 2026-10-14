@@ -32,6 +32,12 @@ if (requireNamespace("fixest", quietly = TRUE)) fixest::setFixest_nthreads(n_cor
 
 event_window <- c(-5, 8)
 
+# occupation (LISS belbezig): employed = paid employment, family business, self-employed (1-3);
+# unemployed after a job loss = job seeker following job loss (4), exempted from job seeking following
+# job loss (6), unpaid work while retaining unemployment benefit (11; added Oct 2026)
+emp_codes   <- 1:3
+unemp_codes <- c(4L, 6L, 11L)
+
 outcome_labels <- c(
   distance                        = "Affective polarization (distance)",
   spread                          = "Affective polarization (spread)",
@@ -142,6 +148,33 @@ prep_outcome <- function(d, y, absorbing = TRUE) {
   d[]
 }
 
+# Items fielded between politics interviews. Income and occupation (the treatments) are measured in the
+# month of the politics interview (December to March, mostly December/January; for person-waves
+# without one, in December/January of that wave: 08_LISS_combine.R), so a loss in wave g happens
+# between the politics interviews of waves g - 1 and g. The personality module (May; generalized trust, connectedness), the social
+# integration module (February or October; heterophily) and the income module (June) of wave w lie
+# between the politics interviews of waves w and w + 1, so their wave g - 1 can already follow the
+# loss. For these items the first wave after the loss is g - 1 (event time 0), and the reference
+# wave is g - 2. shift_between() moves G back by one wave (14_apsr_note.R, 15_mechanisms.R).
+# Treatments defined from such modules (job insecurity, hardship, trouble making ends meet, self-reported
+# wages in 12_alt_treatments.R and 13_followups.R; attitude changes in the horse race of 15) follow the
+# same convention: G is the wave of the module in which the change is first seen, so the reference
+# politics wave G - 1 certainly precedes it and event time 0 may partly precede it.
+between_outcomes <- c("generalized_trust", "red_overall_mean_distance")
+shift_between <- function(d) copy(d)[G > 0, G := G - 1L][, D := as.integer(G > 0 & t >= G)][]
+
+# vote shares: the last national election before the fieldwork of wave w (as in the build,
+# 01_LISS_politics_transformation.R). Elections: Nov 2006, Jun 2010, Sep 2012, Mar 2017, Mar 2021,
+# Nov 2023, Oct 2025.
+election_before <- function(w) fcase(w <= 10, 2006L, w <= 12, 2010L, w <= 17, 2012L, w <= 21, 2017L,
+                                     w <= 23, 2021L, w <= 25, 2023L, default = 2025L)
+
+# Cached results carry a tag of the panels they were computed from and of the definitions in this
+# version of the code; a cache with another tag is ignored and recomputed (14, 15). Bump def_version
+# whenever a definition changes that the panels do not reflect.
+def_version <- "2026-10-13-audit"
+cache_tag <- function() paste(def_version, unname(tools::md5sum(path_panels)))
+
 # Balanced panel, done before calling att_gt(): keep people observed in every wave that has data,
 # which is what did's own balancing does (BMisc::makeBalancedPanel after dropping missing outcomes).
 # did 2.5.1's own balancing stops with "Internal error: treated group <g> not found in cohort_vec"
@@ -187,19 +220,48 @@ sa_fit <- function(d, y) {
   names(b) <- sub(".*::", "", names(coef(s))); dimnames(V) <- list(names(b), names(b))
   list(b = b, V = V, n_treated = uniqueN(d[G > 0, id]))
 }
-# Callaway-Sant'Anna main specification (02_cs.R) with analytic SEs; vcov from the influence function (10, 12)
-cs_fit <- function(d, y) {
+# Callaway-Sant'Anna with analytic SEs; vcov of the event-time estimates from the influence function, so
+# that averages over waves have their full covariance (10, 12, 13, 14, 15, 16). Main specification:
+# never-treated controls, universal base period, no covariates. With an unbalanced panel, did treats the
+# data as repeated cross sections (no within-person differencing; checked in 14 with a within-person
+# estimator). return_inf = TRUE also returns the influence function (rows: people, in the order of
+# ids) for covariances across outcomes and for other levels of clustering.
+cs_fit <- function(d, y, control = "nevertreated", xformla = NULL, return_inf = FALSE) {
   d <- as.data.frame(prep_outcome(d, y))
-  a <- did::att_gt(yname = y, tname = "t", idname = "id", gname = "G", data = d, control_group = "nevertreated",
-              base_period = "universal", allow_unbalanced_panel = TRUE, est_method = "dr",
-              clustervars = "id", bstrap = FALSE)
+  if (!is.null(xformla)) d <- d[complete.cases(d[, baseline_covs]), ]
+  a <- did::att_gt(yname = y, tname = "t", idname = "id", gname = "G", data = d, xformla = xformla,
+                   control_group = control, base_period = "universal", allow_unbalanced_panel = TRUE,
+                   est_method = "dr", clustervars = "id", bstrap = FALSE)
   es <- did::aggte(a, type = "dynamic", min_e = event_window[1], max_e = event_window[2], na.rm = TRUE, bstrap = FALSE)
   keep <- es$egt != -1
   inf <- es$inf.function$dynamic.inf.func.e[, keep, drop = FALSE]
   V <- crossprod(inf) / nrow(inf)^2
-  b <- setNames(es$att.egt[keep], es$egt[keep]); dimnames(V) <- list(names(b), names(b))
+  b <- setNames(es$att.egt[keep], es$egt[keep]); dimnames(V) <- list(names(b), names(b)); colnames(inf) <- names(b)
   stopifnot(all(abs(sqrt(diag(V)) / es$se.egt[keep] - 1) < 0.01))   # vcov matches did's analytic SEs
-  list(b = b, V = V, n_treated = length(unique(d$id[d$G > 0])))
+  # people treated in the first wave with the outcome have no baseline and are dropped by did
+  out <- list(b = b, V = V, n_treated = length(unique(d$id[d$G > 1])), n_units = length(unique(d$id[d$G != 1])))
+  if (return_inf) { ids <- unique(a$DIDparams$data$id); stopifnot(length(ids) == nrow(inf)); out$inf <- inf; out$ids <- ids }
+  out
+}
+
+# averages over windows of event times; each window averages the event times the fit has. A second
+# element is a reference window subtracted from the first (e.g. waves -5 to -3 as baseline).
+windows <- list(Avg = list(0:8), Early = list(0:1), Mid = list(2:4), Late = list(5:8),
+                CleanAvg = list(0:8, -5:-3), CleanMid = list(2:4, -5:-3), MidLate = list(2:4, 5:8))
+win_weights <- function(f, w) {
+  avail <- function(h) intersect(as.character(h), names(f$b))
+  p <- avail(w[[1]]); x <- ev(p, 1 / length(p))
+  if (length(w) > 1) { n <- avail(w[[2]]); x <- c(x, ev(n, -1 / length(n))) }
+  x
+}
+lc <- function(f, nm) {
+  w <- if (is.character(nm)) windows[[nm]] else list(nm)
+  l <- lincom(f$b, f$V, win_weights(f, w)); list(estimate = l[["estimate"]], se = l[["se"]])
+}
+# joint Wald test that the pre-treatment estimates (waves -5 to -2) are zero
+pre_p <- function(f) {
+  k <- intersect(as.character(-5:-2), names(f$b)); if (!length(k)) return(NA_real_)
+  w <- drop(t(f$b[k]) %*% solve(f$V[k, k]) %*% f$b[k]); pchisq(w, length(k), lower.tail = FALSE)
 }
 
 # which treatment/sample combinations each estimator runs (subset in test mode via outcomes only)

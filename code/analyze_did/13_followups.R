@@ -113,7 +113,7 @@ liss <- fread(here("data", "liss_to26.csv"))
 liss <- liss[!duplicated(liss[, .(nomem_encr, wave)])]
 liss[, `:=`(id = nomem_encr, t = as.integer(wave - 7))]
 liss <- liss[age >= 18 & age <= 65]
-liss[, `:=`(emp = occupation %in% 1:3, unemp = occupation %in% c(4, 6))]
+liss[, `:=`(emp = occupation %in% emp_codes, unemp = occupation %in% unemp_codes)]
 inc <- fread(here("data", "liss_income_to26.csv"),
              select = c("nomem_encr", "wave", "net_wage_1", "inc_change_stopwork", "inc_change_startwork", "inc_change_changework",
                         "inc_change_promot", "inc_change_soc_ben_inc", "inc_change_soc_ben_dec"))
@@ -127,20 +127,29 @@ d <- merge(liss[, c("id", "t", "wave", names(outcome_labels), "occupation", "emp
            inc, by.x = c("id", "wave"), by.y = c("nomem_encr", "wave"), all.x = TRUE)
 setorder(d, id, t)
 d[, consec := fifelse(is.na(shift(t)), FALSE, t - shift(t) == 1), by = id]
-d[, `:=`(inc_l = shift(net_monthly_income), wage_l = shift(net_wage_1), kids_l = shift(no_children_hh)), by = id]
+# values in the directly preceding wave (NA after a gap)
+lag1 <- function(x, t) fifelse(t - shift(t) == 1L, shift(x), NA)
+d[, `:=`(inc_l = lag1(net_monthly_income, t), wage_l = lag1(net_wage_1, t), kids_l = lag1(no_children_hh, t),
+         occ_l = lag1(occupation, t)), by = id]
+d[, inc_l2 := lag1(inc_l, t), by = id]
 drop_ev <- function(x, x_l, thr) d$consec & x_l > 0 & x <= (1 - thr) * x_l
 for (thr in c(0.20, 0.25, 0.30, 0.50)) d[, (paste0("ev_p", 100 * thr)) := drop_ev(net_monthly_income, inc_l, thr)]
 d[, ev_wage25 := consec & wage_l > 0 & net_wage_1 > 0 & net_wage_1 <= 0.75 * wage_l]
-d[, voluntary := (no_children_hh > kids_l) %in% TRUE | occupation %in% 7:9]   # new child, student, homemaker, pensioner
+d[, voluntary := (no_children_hh > kids_l) %in% TRUE | occupation %in% 7:9]   # more children in the household, student, homemaker, pensioner
+# drops that may reflect measurement rather than a loss: after a temporary rise (income in the wave
+# before at least a third above the wave before that), of the self-employed or in a family business
+# (occupation 2-3 in the wave before), or from implausible amounts (more than 20,000 euros a month)
+d[, suspect := (inc_l >= 4 / 3 * inc_l2) %in% TRUE | occ_l %in% 2:3 | (inc_l > 20000) %in% TRUE]
 
 # absorbing panel as in 01_sample.R (make_absorbing), with baseline gender
-absorb <- function(evcol, drop_voluntary = FALSE) {
+absorb <- function(evcol, drop_voluntary = FALSE, drop_suspect = FALSE) {
   x <- copy(d)
   x[, ev := get(evcol) %in% TRUE]
   x[, G := if (any(ev)) t[which(ev)[1]] else 0L, by = id]
-  x[, prev_emp := shift(emp), by = id]
+  x[, prev_emp := fifelse(t - shift(t) == 1L, shift(emp), NA), by = id]   # employed in the directly preceding wave
   x <- x[!id %in% x[G > 0 & t == G & !(prev_emp %in% TRUE), unique(id)]]
   if (drop_voluntary) x <- x[!id %in% x[G > 0 & t == G & voluntary == TRUE, unique(id)]]
+  if (drop_suspect) x <- x[!id %in% x[G > 0 & t == G & suspect == TRUE, unique(id)]]
   x <- x[(G > 0 & t >= G) | emp]
   x[, D := as.integer(G > 0 & t >= G)]
   x[, male_base := male[1], by = id]
@@ -151,6 +160,7 @@ inc_variants <- list(
   `drop >= 25%, men`              = function() absorb("ev_p25")[male_base == 1],
   `drop >= 25%, women`            = function() absorb("ev_p25")[male_base == 0],
   `drop >= 25%, without voluntary-looking drops` = function() absorb("ev_p25", drop_voluntary = TRUE),
+  `drop >= 25%, without drops that may be measurement` = function() absorb("ev_p25", drop_suspect = TRUE),
   `drop >= 20%`                   = function() absorb("ev_p20"),
   `drop >= 30%`                   = function() absorb("ev_p30"),
   `drop >= 50%`                   = function() absorb("ev_p50"),
@@ -164,6 +174,7 @@ inc_info <- rbindlist(lapply(names(inc_panels), function(v) {
   w <- merge(d, tr, by = "id")[t == G]
   r <- data.table(variant = v, persons = uniqueN(p$id), treated = nrow(tr), share_women = w[, mean(male == 0, na.rm = TRUE)],
                   unemployed = w[, mean(unemp)], employed = w[, mean(emp)], new_child = w[, mean((no_children_hh > kids_l) %in% TRUE)],
+                  to_zero = w[, mean(net_monthly_income == 0, na.rm = TRUE)], suspect = w[, mean(suspect)],
                   pensioner_student_homemaker = w[, mean(occupation %in% 7:9)])
   for (rc in reason_cols) r[, (rc) := w[, mean(get(rc) == 1, na.rm = TRUE)]]
   r

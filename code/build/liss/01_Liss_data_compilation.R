@@ -55,8 +55,15 @@ df2 <- df %>%
       origin == 102 | origin == 202 ~ 3,
       origin == 999 ~ NA_integer_,
       TRUE ~ NA_integer_
-    )
+    ),
+    # education: 1-6 (9 "not yet started" is not a level)
+    education_cat = ifelse(education_cat %in% 1:6, education_cat, NA_integer_)
   ) %>%
+  # origin is time-invariant but missing in every interview of waves 8-10 and in part of waves 12 and
+  # 17: use the person's most frequent observed origin in all waves
+  group_by(nomem_encr) %>%
+  mutate(origin = { o <- origin[!is.na(origin)]; if (length(o)) as.integer(names(which.max(table(o)))) else NA_integer_ }) %>%
+  ungroup() %>%
   # Recode close contacts' origins
   mutate(across(ends_with("_origin"), 
                 ~case_when(
@@ -100,13 +107,13 @@ for (metric in metrics) {
 # Calculate means across close contacts
 df2 <- df2 %>%
   mutate(
-    distance_age_abs_mean = rowMeans(select(., starts_with("distance_age_abs_")), na.rm = TRUE),
-    distance_age_rel_mean = rowMeans(select(., starts_with("distance_age_rel_")), na.rm = TRUE),
-    distance_gender_mean = rowMeans(select(., starts_with("distance_gender_")), na.rm = TRUE),
-    distance_ethnicity_mean = rowMeans(select(., starts_with("distance_ethnicity_")), na.rm = TRUE),
-    distance_ethnicity_rel_mean = rowMeans(select(., starts_with("distance_ethnicity_rel_")), na.rm = TRUE),
-    distance_education_mean = rowMeans(select(., starts_with("distance_education_")), na.rm = TRUE),
-    distance_education_rel_mean = rowMeans(select(., starts_with("distance_education_rel_")), na.rm = TRUE)
+    distance_age_abs_mean = rowMeans(select(., matches("^distance_age_abs_[1-5]$")), na.rm = TRUE),
+    distance_age_rel_mean = rowMeans(select(., matches("^distance_age_rel_[1-5]$")), na.rm = TRUE),
+    distance_gender_mean = rowMeans(select(., matches("^distance_gender_[1-5]$")), na.rm = TRUE),
+    distance_ethnicity_mean = rowMeans(select(., matches("^distance_ethnicity_[1-5]$")), na.rm = TRUE),
+    distance_ethnicity_rel_mean = rowMeans(select(., matches("^distance_ethnicity_rel_[1-5]$")), na.rm = TRUE),
+    distance_education_mean = rowMeans(select(., matches("^distance_education_[1-5]$")), na.rm = TRUE),
+    distance_education_rel_mean = rowMeans(select(., matches("^distance_education_rel_[1-5]$")), na.rm = TRUE)
   )
 
 
@@ -126,13 +133,13 @@ for (metric in metrics) {
 # Calculate means for reduced dataset
 df3 <- df3 %>%
   mutate(
-    red_distance_age_abs_mean = rowMeans(select(., starts_with("red_distance_age_abs_")), na.rm = TRUE),
-    red_distance_age_rel_mean = rowMeans(select(., starts_with("red_distance_age_rel_")), na.rm = TRUE),
-    red_distance_gender_mean = rowMeans(select(., starts_with("red_distance_gender_")), na.rm = TRUE),
-    red_distance_ethnicity_mean = rowMeans(select(., starts_with("red_distance_ethnicity_")), na.rm = TRUE),
-    red_distance_ethnicity_rel_mean = rowMeans(select(., starts_with("red_distance_ethnicity_rel_")), na.rm = TRUE),
-    red_distance_education_mean = rowMeans(select(., starts_with("red_distance_education_")), na.rm = TRUE),
-    red_distance_education_rel_mean = rowMeans(select(., starts_with("red_distance_education_rel_")), na.rm = TRUE)
+    red_distance_age_abs_mean = rowMeans(select(., matches("^red_distance_age_abs_[1-5]$")), na.rm = TRUE),
+    red_distance_age_rel_mean = rowMeans(select(., matches("^red_distance_age_rel_[1-5]$")), na.rm = TRUE),
+    red_distance_gender_mean = rowMeans(select(., matches("^red_distance_gender_[1-5]$")), na.rm = TRUE),
+    red_distance_ethnicity_mean = rowMeans(select(., matches("^red_distance_ethnicity_[1-5]$")), na.rm = TRUE),
+    red_distance_ethnicity_rel_mean = rowMeans(select(., matches("^red_distance_ethnicity_rel_[1-5]$")), na.rm = TRUE),
+    red_distance_education_mean = rowMeans(select(., matches("^red_distance_education_[1-5]$")), na.rm = TRUE),
+    red_distance_education_rel_mean = rowMeans(select(., matches("^red_distance_education_rel_[1-5]$")), na.rm = TRUE)
   )
 
 
@@ -151,13 +158,13 @@ for (metric in metrics) {
 # Calculate weighted means across close contacts
 df4 <- df3 %>%
   mutate(
-    weighted_distance_age_abs_mean = rowMeans(select(., starts_with("weighted_distance_age_abs_")), na.rm = TRUE),
-    weighted_distance_age_rel_mean = rowMeans(select(., starts_with("weighted_distance_age_rel_")), na.rm = TRUE),
-    weighted_distance_gender_mean = rowMeans(select(., starts_with("weighted_distance_gender_")), na.rm = TRUE),
-    weighted_distance_ethnicity_mean = rowMeans(select(., starts_with("weighted_distance_ethnicity_")), na.rm = TRUE),
-    weighted_distance_ethnicity_rel_mean = rowMeans(select(., starts_with("weighted_distance_ethnicity_rel_")), na.rm = TRUE),
-    weighted_distance_education_mean = rowMeans(select(., starts_with("weighted_distance_education_")), na.rm = TRUE),
-    weighted_distance_education_rel_mean = rowMeans(select(., starts_with("weighted_distance_education_rel_")), na.rm = TRUE)
+    weighted_distance_age_abs_mean = rowMeans(select(., matches("^weighted_distance_age_abs_[1-5]$")), na.rm = TRUE),
+    weighted_distance_age_rel_mean = rowMeans(select(., matches("^weighted_distance_age_rel_[1-5]$")), na.rm = TRUE),
+    weighted_distance_gender_mean = rowMeans(select(., matches("^weighted_distance_gender_[1-5]$")), na.rm = TRUE),
+    weighted_distance_ethnicity_mean = rowMeans(select(., matches("^weighted_distance_ethnicity_[1-5]$")), na.rm = TRUE),
+    weighted_distance_ethnicity_rel_mean = rowMeans(select(., matches("^weighted_distance_ethnicity_rel_[1-5]$")), na.rm = TRUE),
+    weighted_distance_education_mean = rowMeans(select(., matches("^weighted_distance_education_[1-5]$")), na.rm = TRUE),
+    weighted_distance_education_rel_mean = rowMeans(select(., matches("^weighted_distance_education_rel_[1-5]$")), na.rm = TRUE)
   )
 
 
@@ -177,13 +184,13 @@ for (metric in metrics) {
 # Calculate weighted means across close contacts for reduced dataset
 df5 <- df4 %>%
   mutate(
-    red_weighted_distance_age_abs_mean = rowMeans(select(., starts_with("red_weighted_distance_age_abs_")), na.rm = TRUE),
-    red_weighted_distance_age_rel_mean = rowMeans(select(., starts_with("red_weighted_distance_age_rel_")), na.rm = TRUE),
-    red_weighted_distance_gender_mean = rowMeans(select(., starts_with("red_weighted_distance_gender_")), na.rm = TRUE),
-    red_weighted_distance_ethnicity_mean = rowMeans(select(., starts_with("red_weighted_distance_ethnicity_")), na.rm = TRUE),
-    red_weighted_distance_ethnicity_rel_mean = rowMeans(select(., starts_with("red_weighted_distance_ethnicity_rel_")), na.rm = TRUE),
-    red_weighted_distance_education_mean = rowMeans(select(., starts_with("red_weighted_distance_education_")), na.rm = TRUE),
-    red_weighted_distance_education_rel_mean = rowMeans(select(., starts_with("red_weighted_distance_education_rel_")), na.rm = TRUE)
+    red_weighted_distance_age_abs_mean = rowMeans(select(., matches("^red_weighted_distance_age_abs_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_age_rel_mean = rowMeans(select(., matches("^red_weighted_distance_age_rel_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_gender_mean = rowMeans(select(., matches("^red_weighted_distance_gender_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_ethnicity_mean = rowMeans(select(., matches("^red_weighted_distance_ethnicity_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_ethnicity_rel_mean = rowMeans(select(., matches("^red_weighted_distance_ethnicity_rel_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_education_mean = rowMeans(select(., matches("^red_weighted_distance_education_[1-5]$")), na.rm = TRUE),
+    red_weighted_distance_education_rel_mean = rowMeans(select(., matches("^red_weighted_distance_education_rel_[1-5]$")), na.rm = TRUE)
   )
 
 
@@ -216,11 +223,9 @@ df5 <- df4 %>%
 calculate_overall_mean <- function(df, prefix = "") {
   df %>%
     mutate(
+      # mean over the contact items of the four dimensions (items _1 to _5 only)
       !!paste0(prefix, "overall_mean_distance") := rowMeans(
-        select(., starts_with(paste0(prefix, "distance_age_rel_")),
-               starts_with(paste0(prefix, "distance_gender_")),
-               starts_with(paste0(prefix, "distance_ethnicity_rel_")),
-               starts_with(paste0(prefix, "distance_education_rel_"))),
+        select(., matches(paste0("^", prefix, "distance_(age_rel|gender|ethnicity_rel|education_rel)_[1-5]$"))),
         na.rm = TRUE
       )
     )
@@ -253,6 +258,8 @@ df6 <- df5 %>%
 
 # Transform variables -----------------------------------------------------
 
+lag1 <- function(x, w) ifelse(w - dplyr::lag(w) == 1, dplyr::lag(x), NA)   # value in wave w - 1
+
 df6 <- df6 |>
   mutate(
     age_sq = age^2,
@@ -262,10 +269,11 @@ df6 <- df6 |>
       !(occupation %in% c(4, 5, 6, 8, 11)) & !is.na(occupation) ~ 0,
       TRUE ~ NA_real_
     ),
-    # job seeker following job loss, exempted from job seeking following job loss
+    # job seeker following job loss, exempted from job seeking following job loss, unpaid work while
+    # retaining unemployment benefit (as unemp_codes in code/analyze_did/00_setup.R)
     unemployed = case_when(
-      occupation %in% c(4, 6) ~ 1,
-      !(occupation %in% c(4, 6)) & !is.na(occupation) ~ 0,
+      occupation %in% c(4, 6, 11) ~ 1,
+      !(occupation %in% c(4, 6, 11)) & !is.na(occupation) ~ 0,
       TRUE ~ NA_real_
     ),
     student = case_when(
@@ -284,7 +292,7 @@ df6 <- df6 |>
       !(occupation %in% c(1, 2, 3)) & !is.na(occupation) ~ 0,
       TRUE ~ NA_real_
     ),
-    male = ifelse(gender==1,1,0),
+    male = case_when(gender == 1 ~ 1, gender == 2 ~ 0, TRUE ~ NA_real_),   # 3 (other) and missing: NA
     house_owner = case_when(
       dwelling_type == 1 ~ 1,
       dwelling_type != 1 & !is.na(dwelling_type) ~ 0,
@@ -302,18 +310,18 @@ df6 <- df6 |>
     
     net_monthly_income_cat = net_monthly_income_cat + 1,
   ) |>
-  # Change variables
+  # Change variables: lags only over consecutive waves (NA after a gap in the panel)
   group_by(nomem_encr) |>
   arrange(wave) |>
   mutate(
     # treatments
-    delta_unemployed = unemployed - lag(unemployed),
+    delta_unemployed = unemployed - lag1(unemployed, wave),
     unemployment_shock = case_when(
       delta_unemployed == 1 ~ 1,
       delta_unemployed <= 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    delta_income_cat = net_monthly_income_cat - lag(net_monthly_income_cat),
+    delta_income_cat = net_monthly_income_cat - lag1(net_monthly_income_cat, wave),
     income_cat_decrease = case_when(
       delta_income_cat < 0 ~ 1,
       delta_income_cat >= 0 ~ 0,
@@ -325,7 +333,7 @@ df6 <- df6 |>
       TRUE ~ NA_real_
     ),
     # relative income cat decrease
-    delta_income_cat_rel = delta_income_cat / lag(net_monthly_income_cat),
+    delta_income_cat_rel = delta_income_cat / lag1(net_monthly_income_cat, wave),
     income_cat_rel_decrease_10p = case_when(
       delta_income_cat_rel < -0.1 ~ 1,
       delta_income_cat_rel >= -0.1 ~ 0,
@@ -360,16 +368,16 @@ df6 <- df6 |>
       TRUE ~ NA_real_
     ),
     net_monthly_income_hh = net_monthly_income_hh + 1,
-    delta_income_hh = net_monthly_income_hh - lag(net_monthly_income_hh),
-    delta_income_hh_rel = delta_income_hh / lag(net_monthly_income_hh),
+    delta_income_hh = net_monthly_income_hh - lag1(net_monthly_income_hh, wave),
+    delta_income_hh_rel = delta_income_hh / lag1(net_monthly_income_hh, wave),
     income_hh_decrease = case_when(
       delta_income_hh < 0 ~ 1,
       delta_income_hh >= 0 ~ 0,
       TRUE ~ NA_real_
     ),
     income_hh_25p_decrease = case_when(
-      income_hh_decrease == 1 & (abs(delta_income_hh) / lag(net_monthly_income_hh) > .25) ~ 1,
-      income_hh_decrease == 1 & (abs(delta_income_hh) / lag(net_monthly_income_hh) <= .25) ~ 0,
+      income_hh_decrease == 1 & (abs(delta_income_hh) / lag1(net_monthly_income_hh, wave) > .25) ~ 1,
+      income_hh_decrease == 1 & (abs(delta_income_hh) / lag1(net_monthly_income_hh, wave) <= .25) ~ 0,
       TRUE ~ NA_real_
     ),
     # above mean: > .2
@@ -384,54 +392,54 @@ df6 <- df6 |>
       delta_income_hh_rel >= -0.1 ~ 0,
       TRUE ~ NA_real_
     ),
-    delta_income = net_monthly_income - lag(net_monthly_income),
+    delta_income = net_monthly_income - lag1(net_monthly_income, wave),
     income_decrease = case_when(
       delta_income < 0 ~ 1,
       delta_income >= 0 ~ 0,
       TRUE ~ NA_real_
     ),
     income_10p_decrease = case_when(
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .10) ~ 1,
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .10) ~ 0,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) > .10) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) <= .10) ~ 0,
       TRUE ~ NA_real_
     ),
     income_25p_decrease = case_when(
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .25) ~ 1,
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .25) ~ 0,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) > .25) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) <= .25) ~ 0,
       TRUE ~ NA_real_
     ),
     income_50p_decrease = case_when(
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) > .50) ~ 1,
-      income_decrease == 1 & (abs(delta_income) / lag(net_monthly_income) <= .50) ~ 0,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) > .50) ~ 1,
+      income_decrease == 1 & (abs(delta_income) / lag1(net_monthly_income, wave) <= .50) ~ 0,
       TRUE ~ NA_real_
     ),
     # perceived
-    delta_fin_sit_better = fin_sit_better - lag(fin_sit_better),
+    delta_fin_sit_better = fin_sit_better - lag1(fin_sit_better, wave),
     fin_sit_better_decrease = case_when(
       delta_fin_sit_better < 0 ~ 1,
       delta_fin_sit_better >= 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    delta_easy_live_inc = easy_live_inc - lag(easy_live_inc),
+    delta_easy_live_inc = easy_live_inc - lag1(easy_live_inc, wave),
     easy_live_inc_decrease = case_when(
       delta_easy_live_inc < 0 ~ 1,
       delta_easy_live_inc >= 0 ~ 0,
       TRUE ~ NA_real_
     ),
-    delta_confr_trouble_ends_meet = confr_trouble_ends_meet - lag(confr_trouble_ends_meet),
-    delta_hh_fin_sat = hh_fin_sat - lag(hh_fin_sat),
+    delta_confr_trouble_ends_meet = confr_trouble_ends_meet - lag1(confr_trouble_ends_meet, wave),
+    delta_hh_fin_sat = hh_fin_sat - lag1(hh_fin_sat, wave),
     hh_fin_sat_decrease = case_when(
       delta_hh_fin_sat < 0 ~ 1,
       delta_hh_fin_sat >= 0 ~ 0,
       TRUE ~ NA_real_
     ),
     # outcomes
-    delta_partisan_affect = partisan_affect - lag(partisan_affect),
-    delta_spread = spread - lag(spread),
-    delta_distance = distance - lag(distance),
-    delta_generalized_trust = generalized_trust - lag(generalized_trust),
+    delta_partisan_affect = partisan_affect - lag1(partisan_affect, wave),
+    delta_spread = spread - lag1(spread, wave),
+    delta_distance = distance - lag1(distance, wave),
+    delta_generalized_trust = generalized_trust - lag1(generalized_trust, wave),
     # controls
-    l1_net_monthly_income_cat = lag(net_monthly_income_cat)
+    l1_net_monthly_income_cat = lag1(net_monthly_income_cat, wave)
   ) |>
   ungroup() |>
   arrange(nomem_encr, wave) 
@@ -480,7 +488,7 @@ glimpse(df6)
 
 # Select necessary variables
 df7 <- df6 |>
-  select(nomem_encr, wave,
+  select(nomem_encr, nohouse_encr, wave, date_bg,
          # outcomes
          partisan_affect, delta_partisan_affect, spread, delta_spread, distance, like_max, like_min,
          delta_distance, generalized_trust, delta_generalized_trust,
@@ -513,7 +521,7 @@ df7 <- df6 |>
          confr_trouble_ends_meet, delta_confr_trouble_ends_meet,
          hh_fin_sat, delta_hh_fin_sat, hh_fin_sat_decrease,
          # controls
-         age, age_cat, education_cat, student, retired, employed, no_children_hh, no_hh, partner,
+         age, age_cat, birth_year, education_cat, student, retired, employed, no_children_hh, no_hh, partner,
          l1_net_monthly_income_cat, male, house_owner, occupation,
          # new (MH)
          ingroup_party, ingroup_n_tied, like_max_party, like_max_n_tied
@@ -521,6 +529,11 @@ df7 <- df6 |>
 
 # Write
 fwrite(df7, file = here::here("data", "liss_to26.csv"))
+
+# the analysis scripts also read the cleaned politics and income modules from data/ (not in git):
+# refresh those copies with every build so that they cannot go stale
+for (m in c("politics", "income"))
+  stopifnot(file.copy(file.path(liss_clean, paste0("liss_", m, "_to26.csv")), here::here("data", paste0("liss_", m, "_to26.csv")), overwrite = TRUE))
 
 
 names(df7)

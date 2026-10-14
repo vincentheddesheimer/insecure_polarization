@@ -10,7 +10,9 @@
 #   5. the within-person association of the outcomes with the job-loss chance (continuous).
 # Sample and coding as for job loss (01_sample.R): ages 18-65, absorbing treatment = first event,
 # which must follow an employed wave; before the event only employed waves, after it all waves;
-# never treated = comparison group. Events compare a wave with the directly preceding wave.
+# never treated = comparison group. Events compare a wave with the directly preceding wave. Events
+# from the income module (insecurity, hardship, ends meet) follow the convention in 00_setup.R: G is
+# the wave of the module in which the change is first seen, so the reference politics wave precedes it.
 # Needs data/liss_to26.csv and data/liss_income_to26.csv. Saves results/estimates/alt/alt.rds.
 
 rm(list = ls())
@@ -41,7 +43,7 @@ liss <- fread(here("data", "liss_to26.csv"))
 liss <- liss[!duplicated(liss[, .(nomem_encr, wave)])]
 liss[, `:=`(id = nomem_encr, t = as.integer(wave - 7))]
 liss <- liss[age >= 18 & age <= 65]
-liss[, `:=`(emp = occupation %in% 1:3, unemp = occupation %in% c(4, 6))]
+liss[, `:=`(emp = occupation %in% emp_codes, unemp = occupation %in% unemp_codes)]
 inc <- fread(here("data", "liss_income_to26.csv"),
              select = c("nomem_encr", "wave", "pr_lose_job", "hh_fin_sat", "confr_trouble_ends_meet"))
 inc <- inc[!duplicated(inc[, .(nomem_encr, wave)])]
@@ -74,7 +76,7 @@ absorb <- function(key) {
   x <- copy(d)
   x[, ev := get(paste0("ev_", key)) %in% TRUE]
   x[, G := if (any(ev)) t[which(ev)[1]] else 0L, by = id]
-  x[, prev_emp := shift(emp), by = id]
+  x[, prev_emp := fifelse(t - shift(t) == 1L, shift(emp), NA), by = id]   # employed in the directly preceding wave
   bad <- x[G > 0 & t == G & !(prev_emp %in% TRUE), unique(id)]
   x <- x[!id %in% bad]
   if (key == "insec50_keep")                                 # insecurity without losing the job soon after
@@ -156,10 +158,13 @@ es_sa <- rbindlist(lapply(treatments$treat, function(k) {
 
 # 5: continuous job-loss chance ---------------------------------------------
 
+# The income module of wave t is fielded in June, after the politics interview of wave t (00_setup.R),
+# so the outcome of wave t is related to the job-loss chance reported in the income module of wave
+# t - 1, which precedes the interview.
 cont <- rbindlist(lapply(alt_outcomes, function(y) {
-  x <- d[emp & !is.na(pr_lose_job)]
+  x <- d[emp & consec & !is.na(pr_lose_job_l)]
   x <- x[!is.na(x[[y]])]
-  m <- feols(as.formula(paste(y, "~ I(pr_lose_job / 10) | id + t")), x, cluster = ~id)
+  m <- feols(as.formula(paste(y, "~ I(pr_lose_job_l / 10) | id + t")), x, cluster = ~id)
   data.table(outcome = y, estimate = coef(m)[[1]], se = se(m)[[1]], n_obs = nobs(m), n_persons = uniqueN(x$id))
 }))
 message("continuous:"); print(cont)

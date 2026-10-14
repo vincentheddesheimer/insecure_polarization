@@ -517,11 +517,18 @@ inc <-
             b_selfempl_cat_2,b_disable_young_cat_2,b_old_unempl_cat_2,
             income_taxable_2,income_taxable_est_2,income_hh_net_2,
             fin_sit_better_2,easy_live_inc_2,pr_lose_job_2,
-            happy_2,arrears_rent_mort_val,healthy_meal_2,week_holiday_2
+            happy_2,arrears_rent_mort_val_2,healthy_meal_2,week_holiday_2   # keep the merged arrears_rent_mort_val
             )) |>
   # arrange
   arrange(nomem_encr)
 
+
+# Missing-value codes (-9/-8 don't know, 99/998/999 missing; the codes change between waves) to NA in
+# the items used in the analysis, so that the extract can be used without further cleaning
+in_range <- function(x, lo, hi) { x <- suppressWarnings(as.numeric(x)); ifelse(x >= lo & x <= hi, x, NA_real_) }
+for (v in c("sat_fin_sit", "sat_econ_sit_NED", "life_ladder", "happy", "fin_sit_better", "easy_live_inc")) inc[[v]] <- in_range(inc[[v]], 0, 10)
+for (v in c("pr_lose_job", "pr_find_job")) inc[[v]] <- in_range(inc[[v]], 0, 100)   # percent chance
+inc[["hh_fin_sat"]] <- in_range(inc[["hh_fin_sat"]], 1, 5)
 
 # write .csv file
 fwrite(inc, file = file.path(liss_clean, "liss_income_to26.csv"))

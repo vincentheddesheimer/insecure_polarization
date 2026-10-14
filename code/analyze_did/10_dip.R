@@ -6,10 +6,14 @@
 #      (contrasts of Sun-Abraham and Callaway-Sant'Anna event-study coefficients, with SEs);
 #   2. how the average effect over waves 0-8 depends on the reference: t-1, t-2, mean of t-5..t-1;
 #   3. whether single cohorts drive the dip, and whether it coincides with a change in the
-#      vote-share weights of distance (the election used switches at waves 10, 12, 17, 21, 24, 26);
+#      vote-share weights of distance (the election used, election_before() in 00_setup.R, switches
+#      at waves 11, 13, 18, 22, 24 and 26);
 #   4. whether job losers expect the job loss at t-1: subjective chance of losing the job within
 #      12 months (income module; asked of employed people only, so pre-treatment waves only) and
-#      financial-situation items;
+#      financial-situation items. The income module of wave w is fielded in June, between the
+#      politics interviews of waves w and w + 1 (00_setup.R), so its "t-1" lies half a wave before
+#      the interview that records the job loss, and people who have lost their job by then are not
+#      asked; its "t-2" lies a wave and a half before. 14_apsr_note.R plots them at -0.5 and -1.5.
 #   5. the unweighted components like max and like min, as a check on the vote-share weights.
 # Job-loss panel, never-unemployed comparison group, waves numbered per outcome (prep_outcome).
 # Needs data/liss_income_to26.csv (cleaned income module of the build; the items are not in
@@ -29,8 +33,6 @@ econ_labels <- c(pr_lose_job    = "Chance of losing job within 12 months (%)",
                  fin_sit_better = "Household finances better than a year ago (z)",
                  easy_live_inc  = "Easy to live off household income (z)",
                  hh_fin_sat     = "Household financial situation (z)")
-elec_year <- function(wave) as.integer(as.character(cut(wave, c(-Inf, 9, 11, 16, 20, 23, 25, Inf),
-                                                        labels = c(2006, 2010, 2012, 2017, 2021, 2023, 2025))))
 
 contrast_defs <- list(
   `t-1 vs mean(t-5..t-2)` = ev(-5:-2, -1/4),
@@ -68,7 +70,7 @@ cohort_steps <- function(d, y) {
     if (n1 < 2 || n0 < 2) return(NULL)
     wa <- waves[t == a, t_cal] + 7L; wb <- waves[t == b, t_cal] + 7L
     data.table(outcome = y, cohort_wave = waves[t == g, t_cal] + 7L, step = sprintf("t-%d -> t-%d", k + 1, k),
-               from_wave = wa, to_wave = wb, weights_change = elec_year(wa) != elec_year(wb),
+               from_wave = wa, to_wave = wb, weights_change = election_before(wa) != election_before(wb),
                estimate = x[treated == TRUE, mean(dy)] - x[treated == FALSE, mean(dy)],
                se = sqrt(x[treated == TRUE, var(dy)] / n1 + x[treated == FALSE, var(dy)] / n0), n_treated = n1)
   }))))
