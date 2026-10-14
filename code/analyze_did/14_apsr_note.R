@@ -19,7 +19,7 @@
 # Mechanism outcomes (00_setup.R mechanism_labels): confidence in institutions, satisfaction.
 # Generalized trust and heterophily are fielded between politics interviews and use wave -2 as the
 # reference (shift_between() in 00_setup.R).
-# Run order: 01_sample.R, then 10, 12, 13, 15, 16 and 17 (their saved results are read here), then this
+# Run order: 01_sample.R, then 10, 12, 13, 15, 16, 17 and 18 (their saved results are read here), then this
 # script. CS is fitted with analytic (influence-function) standard errors, so that averages over waves
 # have their full covariance; BJS window averages use didimputation's weights. Fits are cached in
 # results/estimates/apsr/refits.rds with a tag of the panels and definitions (cache_tag() in
@@ -945,6 +945,55 @@ num("SwitchN", n_word(length(ex_bl$switchers)))
 rs <- ex_t$reasons[, .(N = sum(N)), by = reason_grp]
 num("ReasonClosureN", big(rs[reason_grp == "closure", N])); num("ReasonDismissalN", big(rs[reason_grp == "dismissal", N]))
 num("ReasonAnyPct", sprintf("%.0f", 100 * ex_t$reasons[!is.na(reason), sum(N)] / sum(rs$N)))
+
+
+# Table I1: validation with LISS study 233, "Affective polarization" (18_ap_validation.R) ----------
+va <- readRDS(here("results", "estimates", "ap_study", "validation.rds"))
+ci_cell <- function(r, lo, hi) sprintf("%s [%s, %s]", neg(f2(r)), neg(f2(lo)), neg(f2(hi)))
+va_cell <- function(xv, yv, yr) { z <- va$cross[x == xv & y == yv & year == yr]
+  if (!nrow(z)) "-- & " else sprintf("%s & %s", ci_cell(z$r, z$lo, z$hi), big(z$n)) }
+va_row <- function(xv, yv, label) sprintf("%s & %s & %s \\\\", label, va_cell(xv, yv, "2019"), va_cell(xv, yv, "2021"))
+ch_row <- function(xv, yv, label) { z <- va$changes[x == xv & y == yv]
+  sprintf("%s & \\multicolumn{4}{c}{%s, $n$ = %s} \\\\", label, ci_cell(z$r, z$lo, z$hi), big(z$n)) }
+vs_ch <- va$slopes[model == "change: voter (eight parties) on the note's distance"]
+writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
+  "& \\multicolumn{2}{c}{August 2019} & \\multicolumn{2}{c}{July 2021} \\\\", "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}",
+  "Correlation of our distance with & $r$ [95\\% CI] & $n$ & $r$ [95\\% CI] & $n$ \\\\", "\\midrule",
+  "\\multicolumn{5}{l}{\\emph{Feelings toward voters and groups}} \\\\",
+  va_row("p_dist", "v_dist", "Distance computed from feelings toward each party's voters"),
+  va_row("p_dist_same", "v_dist", "\\quad our distance over the same parties"),
+  va_row("p_dist", "v_min", "Feelings toward the least-liked party's voters"),
+  va_row("p_dist", "issue_ap", "Gap between opposing issue and ideological groups"),
+  va_row("p_dist", "social_spread", "Spread of feelings toward social groups"),
+  "\\midrule", "\\multicolumn{5}{l}{\\emph{Social distance and hostility}} \\\\",
+  va_row("p_dist", "social_distance", "Would mind a child marrying a voter of the least-liked party"),
+  va_row("p_dist", "hate", "Has come to hate people for their opinions"),
+  va_row("p_dist", "intolerance", "Intolerance of the least-liked party's followers"),
+  "\\midrule", "\\multicolumn{5}{l}{\\emph{Benchmarks}} \\\\",
+  va_row("p_dist_before", "p_dist_after", "Our distance in the politics waves before and after"),
+  va_row("v_dist", "social_distance", "Voter-based distance and minding the marriage"),
+  va_row("v_dist", "hate", "Voter-based distance and hatred"),
+  "\\midrule", "\\multicolumn{5}{l}{\\emph{Changes from 2019 to 2021, people in both waves}} \\\\",
+  ch_row("dp", "dv", "Change in voter-based distance (eight parties)"),
+  sprintf("\\quad slope (SE); corrected for unreliability & \\multicolumn{4}{c}{%s (%s); %s} \\\\", f2(vs_ch$b), f2(vs_ch$se), f2(vs_ch$b_corrected)),
+  ch_row("dp", "dsd", "Change in minding the marriage"),
+  ch_row("dp", "dhate", "Change in hatred"),
+  "\\bottomrule", "\\end{tabular}"), tab_path("tabI1_validation"))
+# numbers
+vx <- function(xv, yv) va$cross[x == xv & y == yv, r]
+for (k in list(c("ValVoter", "p_dist", "v_dist"), c("ValRetest", "p_dist_before", "p_dist_after"), c("ValSocial", "p_dist", "social_distance"),
+               c("ValHate", "p_dist", "hate"), c("ValVoterSocial", "v_dist", "social_distance"), c("ValVoterHate", "v_dist", "hate"))) {
+  num(paste0(k[1], "Min"), f2(min(vx(k[2], k[3])))); num(paste0(k[1], "Max"), f2(max(vx(k[2], k[3]))))
+}
+num("ValIntolerance", neg(f2(vx("p_dist", "intolerance")))); num("ValSocialSpread", f2(vx("p_dist", "social_spread")))
+num("ValPartialRaw", f2(va$partial$r_raw)); num("ValPartial", f2(va$partial$r_partial))
+num("ValNOne", big(va$n[year == "2019", study])); num("ValNTwo", big(va$n[year == "2021", study])); num("ValInBoth", big(va$n$in_both[1]))
+num("ValChangeR", f2(va$changes[x == "dp" & y == "dv", r])); num("ValChangeN", big(va$changes[x == "dp" & y == "dv", n]))
+num("ValChangeSlope", f2(vs_ch$b)); num("ValChangeSlopeCorr", f2(vs_ch$b_corrected)); num("ValRelChange", f2(va$reliability$rel_change_avg))
+num("ValLevelSlope", f2(va$slopes[model == "levels: voter on the note's distance (both years)", b]))
+inc_mid <- lc(fit("cs_main", "pinc25"), "Mid")$estimate
+num("ValImpliedLo", f2(inc_mid * vs_ch$b)); num("ValImpliedHi", f2(inc_mid * vs_ch$b_corrected))
+num("ValLossInc", n_word(va$losses[treatment == "pinc25", between])); num("ValLossJob", n_word(va$losses[treatment == "jobloss", between]))
 
 
 # numbers.tex ----------------------------------------------------------------------------------
