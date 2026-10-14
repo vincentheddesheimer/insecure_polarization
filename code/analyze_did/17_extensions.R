@@ -14,6 +14,7 @@
 #    (company closure or reorganization, other dismissal, other or no answer; Work and Schooling); the
 #    partner's job loss and income loss as treatments; size of the income loss (dose bins).
 # 4. Inference: equivalence bounds for the pre-trends, attrition weighting.
+# 5. Selection: within-person comparisons within the same sector and occupation before the loss.
 #
 # Designs: CS = the note's main specification (cs_fit in 00_setup.R). Stacked = the within-person
 # estimator of 14_apsr_note.R (one employment rule for treated and controls), generalized here to
@@ -21,7 +22,7 @@
 # Needs data/liss_to26.csv, data/liss_politics_to26.csv, data/liss_income_to26.csv, the raw LISS
 # politics, personality, social integration, background and Work and Schooling files (LISS_RAW) and
 # the panels (01); does not read 14's results. Saves results/estimates/extensions/*.rds (aggregates only).
-# Parts: Sys.setenv(DID_EXT_PARTS = "measurement,blame,treatments,inference"); DID_EXT_REFIT=1 refits.
+# Parts: Sys.setenv(DID_EXT_PARTS = "measurement,blame,treatments,inference,selection"); DID_EXT_REFIT=1 refits.
 
 rm(list = ls())
 here::i_am("code/analyze_did/17_extensions.R")
@@ -31,7 +32,7 @@ pacman::p_load(did, readstata13)
 
 refit <- Sys.getenv("DID_EXT_REFIT") == "1"
 parts <- if (Sys.getenv("DID_EXT_PARTS") != "") strsplit(Sys.getenv("DID_EXT_PARTS"), ",")[[1]] else
-  c("measurement", "blame", "treatments", "inference")
+  c("measurement", "blame", "treatments", "inference", "selection")
 tr_lab <- c(pinc25 = "Large income loss", jobloss = "Job loss")
 raw <- path.expand(Sys.getenv("LISS_RAW"))
 in_range <- function(x, lo, hi) { x <- suppressWarnings(as.numeric(x)); fifelse(x >= lo & x <= hi, x, NA_real_) }
@@ -50,7 +51,21 @@ cached_fits <- function(name, keys, fun) {
   }
   cache[setdiff(names(cache), "tag")]
 }
-summarise_fit <- function(f, sd = NA_real_) rbindlist(lapply(c("Early", "Mid", "Avg"), function(nm) {
+# Work and Schooling items (named vector: new name = item number), read from the archive zips in
+# LISS_RAW/work_schooling/zip without unpacking them to disk; columns renamed by name, because
+# read.dta13 returns them in file order
+read_ws <- function(items) {
+  td <- tempfile("ws"); dir.create(td); on.exit(unlink(td, recursive = TRUE))
+  rbindlist(lapply(list.files(file.path(raw, "work_schooling", "zip"), pattern = "^cw[0-9]{2}[a-z].*[.]zip$", full.names = TRUE), function(z) {
+    f <- unzip(z, exdir = td, junkpaths = TRUE); on.exit(unlink(f))
+    pre <- sub("_EN.*", "", basename(z)); v <- paste0(pre, items)
+    d <- as.data.table(suppressWarnings(read.dta13(f, select.cols = c("nomem_encr", v), convert.factors = FALSE)))
+    setnames(d, c("nomem_encr", v), c("id", names(items)))
+    d[, ws_year := 2000L + as.integer(substr(pre, 3, 4))][]
+  }))
+}
+# windows: Early, Mid, Avg against wave -1; CleanMid, CleanAvg against the mean of waves -5 to -3
+summarise_fit <- function(f, sd = NA_real_) rbindlist(lapply(c("Early", "Mid", "Avg", "CleanMid", "CleanAvg"), function(nm) {
   x <- lc(f, nm); data.table(window = nm, estimate = x$estimate, se = x$se)
 }))[, `:=`(pre_p = pre_p(f), n_treated = f$n_treated, est_sd = estimate / sd, se_sd = se / sd)][]
 
@@ -375,17 +390,7 @@ if ("treatments" %in% parts) {
   # Closure: dismissed due to company closure or reorganization (code 9); other dismissal: end of a
   # (temporary) contract or dismissed for other reasons (11, 12); other: any other reason or no answer
   # (mostly back in work by the time of the module). Read from the zips in LISS_RAW/work_schooling/zip.
-  read_ws <- function() {
-    td <- tempfile("ws"); dir.create(td); on.exit(unlink(td, recursive = TRUE))
-    rbindlist(lapply(list.files(file.path(raw, "work_schooling", "zip"), pattern = "^cw[0-9]{2}[a-z].*[.]zip$", full.names = TRUE), function(z) {
-      f <- unzip(z, exdir = td, junkpaths = TRUE); on.exit(unlink(f))
-      pre <- sub("_EN.*", "", basename(z)); v <- paste0(pre, c("326", "319"))
-      d <- as.data.table(suppressWarnings(read.dta13(f, select.cols = c("nomem_encr", v), convert.factors = FALSE)))
-      setnames(d, c("nomem_encr", v), c("id", "reason", "year_stop"))      # by name: read.dta13 keeps file order
-      d[!is.na(reason)][, ws_year := 2000L + as.integer(substr(pre, 3, 4))][]
-    }))
-  }
-  ws <- read_ws()
+  ws <- read_ws(c(reason = "326", year_stop = "319"))[!is.na(reason)]
   rs <- merge(unique(jl[G > 0, .(id, g = G + 7L)]), ws, by = "id")[ws_year - g >= 1999L & ws_year - g <= 2000L]
   rs <- rs[is.na(year_stop) | (year_stop - g >= 1998L & year_stop - g <= 2000L)][order(id, ws_year)][, .SD[1], by = id]
   jl[rs, on = "id", reason := i.reason]
@@ -459,6 +464,40 @@ if ("inference" %in% parts) {
     summarise_fit(fits_i[[k]][[v]], sd_d)[, `:=`(treatment = sub("[|].*", "", k), version = v)]))))
   saveRDS(list(equivalence = eqv, attrition = att), path_est("extensions", "inference_summary"))
   message("equivalence:"); print(eqv); message("attrition (waves 2-4):"); print(att[window == "Mid"])
+}
+
+# 5. Selection on sector and occupation ----------------------------------------------------------
+# Losses concentrate in some sectors and occupations. The within-person estimator compares people
+# with and without a loss only within the same group of sector (six groups) and occupation (three
+# groups) before the loss (cells by cohort, wave and group). Sector and occupation come from the first
+# Work and Schooling module in which the person reports them (cw*402, cw*404; current or last job),
+# which for people with a loss must be fielded before the politics interview of wave g - 1 (calendar
+# year up to 1998 + g). Compared with the same estimator on the same people without matching.
+
+if ("selection" %in% parts) {
+  sec <- read_ws(c(sector = "402", prof = "404"))[sector %in% 1:15 & prof %in% 1:9]
+  sec[, `:=`(sector_grp = fcase(sector %in% 1:5, "industry and construction", sector %in% 6:8, "trade, catering, transport",
+                                sector %in% 9:10, "finance and business services", sector == 11, "public administration",
+                                sector %in% 12:13, "education and health", default = "other services"),
+             prof_grp = fcase(prof %in% 1:4, "higher and intermediate", prof == 5, "other non-manual", default = "manual"))]
+  sel_fit <- function(tr) {
+    d <- px[[paste0(tr, "_all")]]
+    gs <- unique(d[, .(id, G)])
+    b <- merge(sec, gs, by = "id")[G == 0L | ws_year - (G + 7L) <= 1998L][order(id, ws_year)][, .SD[1], by = id]
+    d <- merge(d, b[, .(id, cell = paste(sector_grp, prof_grp, sep = " / "))], by = "id")
+    r <- stack_rows(d, "distance", base_cols = "cell")
+    list(unmatched = cell_did(r)[[1]], matched = cell_did(r, cell_cols = "cell")[[1]],
+         coverage = data.table(treated_all = uniqueN(px[[paste0(tr, "_all")]][G > 0, id]), treated_with_cell = uniqueN(d[G > 0, id])),
+         cells = b[, .N, by = .(treated = G > 0, sector_grp, prof_grp)])
+  }
+  fits_s <- cached_fits("selection", paste0(names(tr_lab), "|sector"), function(k) sel_fit(sub("[|].*", "", k)))[paste0(names(tr_lab), "|sector")]
+  sd_d <- sd_of("distance")
+  sel <- rbindlist(lapply(names(fits_s), function(k) rbindlist(lapply(c("unmatched", "matched"), function(v)
+    summarise_fit(fits_s[[k]][[v]], sd_d)[, `:=`(treatment = sub("[|].*", "", k), version = v)]))))
+  saveRDS(list(summary = sel, coverage = rbindlist(lapply(names(fits_s), function(k) fits_s[[k]]$coverage[, treatment := sub("[|].*", "", k)])),
+               cells = rbindlist(lapply(names(fits_s), function(k) fits_s[[k]]$cells[, treatment := sub("[|].*", "", k)]))),
+          path_est("extensions", "selection_summary"))
+  message("selection (sector x occupation):"); print(sel[window %in% c("Mid", "Avg")])
 }
 
 ### END

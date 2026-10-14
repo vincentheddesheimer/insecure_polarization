@@ -62,6 +62,7 @@ ex_m <- readRDS(here("results", "estimates", "extensions", "measurement_summary.
 ex_bl <- readRDS(here("results", "estimates", "extensions", "blame_summary.rds")); ex_b <- ex_bl$summary
 ex_t <- readRDS(here("results", "estimates", "extensions", "treatments_summary.rds"))
 ex_i <- readRDS(here("results", "estimates", "extensions", "inference_summary.rds"))
+ex_s <- readRDS(here("results", "estimates", "extensions", "selection_summary.rds"))
 
 
 # Refits ----------------------------------------------------------------------
@@ -544,6 +545,30 @@ pb2 <- ggplot(fb2[!is.na(Mbar)], aes(Mbar, ymin = lb, ymax = ub)) +
        y = "95% robust confidence interval") + theme_paper()
 ggsave(fig_path("figB2_honestdid"), pb2, width = 6.5, height = 4.2)
 
+# Figure B3: average effect over every window of waves a to b (0 <= a <= b <= 8), main specification;
+# outlined: waves 2-4 and 0-8. Numbers for the text: how many windows are positive and significant.
+allwin <- rbindlist(lapply(names(tr_lab), function(tr) { f <- fit("cs_main", tr)
+  rbindlist(lapply(0:8, function(a) rbindlist(lapply(a:8, function(b) { x <- lc(f, a:b)
+    data.table(treatment = tr, first = a, last = b, estimate = x$estimate, se = x$se) })))) }))
+allwin[, `:=`(sig = abs(estimate / se) > 1.96, treatment_label = factor(tr_lab[treatment], levels = tr_lab))]
+pb3 <- ggplot(allwin, aes(first, last, fill = estimate)) +
+  geom_tile(colour = "white") +
+  geom_text(aes(label = paste0(sub("^(-?)0", "\\1", sprintf("%.2f", estimate)), fifelse(sig, "*", ""))), size = 2.2) +
+  geom_tile(data = allwin[(first == 2 & last == 4) | (first == 0 & last == 8)], fill = NA, colour = "black", linewidth = 0.6,
+            width = 1, height = 1) +
+  facet_wrap(~ treatment_label) +
+  scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0) +
+  scale_x_continuous(breaks = 0:8, expand = c(0, 0)) + scale_y_continuous(breaks = 0:8, expand = c(0, 0)) +
+  coord_equal() + labs(x = "First wave after the loss", y = "Last wave after the loss") +
+  theme_paper() + theme(legend.position = "right", panel.grid = element_blank())
+ggsave(fig_path("figB3_windows"), pb3, width = 6.5, height = 3.4)
+for (tr in names(tr_lab)) {
+  x <- allwin[treatment == tr]; k <- tr_key[[tr]]
+  num(paste0(k, "WinPos"), n_word(sum(x$estimate > 0))); num(paste0(k, "WinSig"), n_word(sum(x$sig & x$estimate > 0)))
+  num(paste0(k, "WinMin"), neg(f2(min(x$estimate)))); num(paste0(k, "WinMax"), neg(f2(max(x$estimate))))
+}
+num("WinN", n_word(allwin[treatment == "pinc25", .N]))
+
 # Figure C1: anticipation of job loss
 # the income module of wave w is fielded between the politics interviews of waves w and w + 1, so its
 # event times -2 and -1 lie at -1.5 and -0.5 on the scale of the politics interviews
@@ -694,6 +719,8 @@ writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
   b_row("Not-yet-treated controls (comparison group)", function(tr, nm) lc(fit("cs_notyet", tr), nm)),
   b_row("Baseline covariates (selection on observables)", function(tr, nm) lc(fit("cs_covars", tr), nm)),
   b_row("\\quad Same sample without covariates", function(tr, nm) lc(fit("cs_cc", tr), nm)),
+  b_row("Within sector and occupation (selection on observables)", function(tr, nm) ex_s$summary[treatment == tr & version == "matched" & window == nm, .(estimate, se)]),
+  b_row("\\quad same people, not matched", function(tr, nm) ex_s$summary[treatment == tr & version == "unmatched" & window == nm, .(estimate, se)]),
   b_row("Waves $-5$ to $-3$ as baseline (no anticipation)", function(tr, nm) lc(fit("cs_main", tr), paste0("Clean", nm))),
   b_row("Same people before and after (no compositional change)", function(tr, nm) lc(fit("wp", tr), nm)),
   b_row("No household members of the treated (no spillovers)", function(tr, nm) lc(fit("cs_nohh", tr), nm)),
@@ -876,14 +903,14 @@ writeLines(c(ex_head("Measure"),
 c2_lab <- list(
   "Size of the first drop in personal income of 10\\% or more" = c(dose_10_25 = "10 to 25\\%", dose_25_50 = "25 to 50\\%", dose_50 = "50\\% or more"),
   "Job loss, by the reason for leaving the job (Work and Schooling)" = c(reason_closure = "Company closure or reorganization",
-    reason_dismissal = "End of contract or other dismissal", reason_other = "Other reason, or none recorded (mostly back in work)"),
+    reason_dismissal = "End of contract or other dismissal", reason_other = "Other reason or none recorded"),
   "Job loss, by unemployment benefit (WW) in the year of the loss or the next" = c(ww_yes = "Receives WW", ww_no = "Does not receive WW"),
   "The partner's loss (own job not lost in the same wave)" = c(partner_job = "Partner loses job", partner_inc = "Partner's income $-$25\\% or more"))
-c2_cell <- function(k) { x <- ex_t$summary[treatment == k]
-  sprintf("%s & %s & %s & %s", big(x$n_treated[1]), cell_se(x[window == "Avg", estimate], x[window == "Avg", se]),
-          cell_se(x[window == "Mid", estimate], x[window == "Mid", se]), pval(x$pre_p[1])) }
-writeLines(c("\\begin{tabular}{lrccc}", "\\toprule", "Treatment & Treated & Waves 0--8 & Waves 2--4 & Pre-trend $p$ \\\\", "\\midrule",
-  unlist(lapply(names(c2_lab), function(pn) c(if (pn != names(c2_lab)[1]) "\\midrule", sprintf("\\multicolumn{5}{l}{\\emph{%s}} \\\\", pn),
+c2_cell <- function(k) { x <- ex_t$summary[treatment == k]; ce <- function(nm) cell_se(x[window == nm, estimate], x[window == nm, se])
+  sprintf("%s & %s & %s & %s & %s", big(x$n_treated[1]), ce("Avg"), ce("Mid"), ce("CleanMid"), pval(x$pre_p[1])) }
+writeLines(c("\\begin{tabular}{lrcccc}", "\\toprule", "& & \\multicolumn{2}{c}{Baseline wave $-1$} & Baseline $-5$ to $-3$ & \\\\",
+  "\\cmidrule(lr){3-4} \\cmidrule(lr){5-5}", "Treatment & Treated & Waves 0--8 & Waves 2--4 & Waves 2--4 & Pre-trend $p$ \\\\", "\\midrule",
+  unlist(lapply(names(c2_lab), function(pn) c(if (pn != names(c2_lab)[1]) "\\midrule", sprintf("\\multicolumn{6}{l}{\\emph{%s}} \\\\", pn),
     vapply(names(c2_lab[[pn]]), function(k) sprintf("%s & %s \\\\", c2_lab[[pn]][[k]], c2_cell(k)), "")))),
   "\\bottomrule", "\\end{tabular}"), tab_path("tabC2_treatments"))
 
@@ -937,11 +964,19 @@ trt_key <- c(dose_10_25 = "DoseLow", dose_25_50 = "DoseMid", dose_50 = "DoseHigh
              reason_other = "ReasonOther", ww_yes = "WWYes", ww_no = "WWNo", partner_job = "PartnerJob", partner_inc = "PartnerInc")
 for (key in names(trt_key)) {
   x <- ex_t$summary[treatment == key]; k <- trt_key[[key]]
-  for (nm in c("Mid", "Avg")) num_est(paste0(k, nm), x[window == nm, estimate], x[window == nm, se])
+  for (nm in c("Mid", "Avg", "CleanMid")) num_est(paste0(k, nm), x[window == nm, estimate], x[window == nm, se])
   num(paste0(k, "Treated"), big(x$n_treated[1])); num(paste0(k, "PreP"), pval(x$pre_p[1]))
 }
 num("WWSharePct", sprintf("%.0f", 100 * ex_t$ww_share))
 num("SwitchN", n_word(length(ex_bl$switchers)))
+sel_key <- c(matched = "Sector", unmatched = "SectorUnmatched")
+for (tr in names(tr_lab)) {    # selection on sector and occupation (within-person, matched cells)
+  k <- tr_key[[tr]]
+  for (v in names(sel_key)) for (nm in c("Mid", "Avg")) {
+    x <- ex_s$summary[treatment == tr & version == v & window == nm]; num_est(paste0(k, sel_key[[v]], nm), x$estimate, x$se)
+  }
+  cv <- ex_s$coverage[treatment == tr]; num(paste0(k, "SectorCoveragePct"), sprintf("%.0f", 100 * cv$treated_with_cell / cv$treated_all))
+}
 rs <- ex_t$reasons[, .(N = sum(N)), by = reason_grp]
 num("ReasonClosureN", big(rs[reason_grp == "closure", N])); num("ReasonDismissalN", big(rs[reason_grp == "dismissal", N]))
 num("ReasonAnyPct", sprintf("%.0f", 100 * ex_t$reasons[!is.na(reason), sum(N)] / sum(rs$N)))
