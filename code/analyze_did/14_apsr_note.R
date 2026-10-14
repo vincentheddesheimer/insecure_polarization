@@ -19,7 +19,7 @@
 # Mechanism outcomes (00_setup.R mechanism_labels): confidence in institutions, satisfaction.
 # Generalized trust and heterophily are fielded between politics interviews and use wave -2 as the
 # reference (shift_between() in 00_setup.R).
-# Run order: 01_sample.R, then 10, 12, 13, 15, 16, 17 and 18 (their saved results are read here), then this
+# Run order: 01_sample.R, then 10, 12, 13, 15, 16, 17, 18 and 19 (their saved results are read here), then this
 # script. CS is fitted with analytic (influence-function) standard errors, so that averages over waves
 # have their full covariance; BJS window averages use didimputation's weights. Fits are cached in
 # results/estimates/apsr/refits.rds with a tag of the panels and definitions (cache_tag() in
@@ -302,17 +302,21 @@ for (tr in names(tr_lab)) {
     b <- breakdown[treatment == tr & target == nm, Mbar]
     num(paste0(k, "HonestBreak", nm), if (is.na(b)) "none" else sprintf("%.2f", b))   # none: interval includes zero at Mbar = 0
   }
-  for (h in 2:4) num(paste0(k, "DistCSWave", c("Two", "Three", "Four")[h - 1]), neg(f2(fit("cs_main", tr)$b[[as.character(h)]])))
   num(paste0(k, "DistCSWaveMinusTwo"), neg(f2(fit("cs_main", tr)$b[["-2"]])))
   num(paste0(k, "DistCSWaveMinusTwoSE"), f2(sqrt(fit("cs_main", tr)$V["-2", "-2"])))
-  # medium-run effect relative to the national trend and to within-person variation
-  num(paste0(k, "MidTrendPct"), sprintf("%.0f", 100 * lc(fit("cs_main", tr), "Mid")$estimate / trend_change))
-  num(paste0(k, "MidWithinShare"), sprintf("%.0f", 100 * lc(fit("cs_main", tr), "Mid")$estimate / cache$sds[outcome == "distance", sd_within]))
+  # overall effect (waves 0-8) relative to the national trend and to within-person variation
+  num(paste0(k, "AvgTrendPct"), sprintf("%.0f", 100 * lc(fit("cs_main", tr), "Avg")$estimate / trend_change))
+  num(paste0(k, "AvgWithinShare"), sprintf("%.0f", 100 * lc(fit("cs_main", tr), "Avg")$estimate / cache$sds[outcome == "distance", sd_within]))
+  # event-study estimates for every wave after the loss (where the effect is strongest)
+  for (h in 0:8) num(paste0(k, "DistCSWave", c("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight")[h + 1]),
+                     neg(f2(fit("cs_main", tr)$b[[as.character(h)]])))
   # power: minimum detectable effect (80% power, 5% two-sided)
   for (nm in c("Avg", "Mid")) num(paste0(k, "MDE", nm), f2(2.8 * lc(fit("cs_main", tr), nm)$se))
-  # gender difference in the medium run (independent samples)
-  m <- lc(fit("cs_main", tr, sm = "men"), "Mid"); w <- lc(fit("cs_main", tr, sm = "women"), "Mid")
-  num_est(paste0(k, "GenderDiffMid"), m$estimate - w$estimate, sqrt(m$se^2 + w$se^2))
+  # gender difference (independent samples), waves 2-4 and 0-8
+  for (nm in c("Mid", "Avg")) {
+    m <- lc(fit("cs_main", tr, sm = "men"), nm); w <- lc(fit("cs_main", tr, sm = "women"), nm)
+    num_est(paste0(k, "GenderDiff", nm), m$estimate - w$estimate, sqrt(m$se^2 + w$se^2))
+  }
   for (sm in c("men", "women")) { x <- fit("bjs_avg", tr, sm = sm); num_est(paste0(k, "DistBJS", sm_key[[sm]], "Avg"), x$estimate, x$se) }
   for (y in c("generalized_trust", "red_overall_mean_distance", mech)) {
     x <- fit("bjs_avg", tr, y); num_est(paste0(k, y_key[[y]], "BJSAvg"), x$estimate, x$se, sd_y[[y]])
@@ -342,6 +346,13 @@ for (v in c("drop >= 20%", "drop >= 30%", "drop >= 50%", "drop >= 25%, without v
   range_num(c(`drop >= 20%` = "IncTwenty", `drop >= 30%` = "IncThirty", `drop >= 50%` = "IncFifty",
               `drop >= 25%, without voluntary-looking drops` = "IncNoVol",
               `drop >= 25%, without drops that may be measurement` = "IncNoSuspect")[[v]], rbind(ie(v, "CS"), ie(v, "BJS")))
+# Callaway-Sant'Anna estimate with SE (the text reports the main estimator; imputation in SI Table C1)
+alt_key <- c(insec50 = "Insec", insec50_keep = "InsecKeep", p10 = "PTen", hardship = "Hardship", endsmeet = "EndsMeet",
+             p25_emp = "IncKept", hh10 = "HhTen")
+for (k in names(alt_key)) { x <- ae(k, "CS"); num_est(paste0(alt_key[[k]], "CS"), x$estimate, x$se) }
+inc_key <- c(`drop >= 20%` = "IncTwenty", `drop >= 30%` = "IncThirty", `drop >= 50%` = "IncFifty",
+             `drop >= 25%, without voluntary-looking drops` = "IncNoVol", `drop >= 25%, without drops that may be measurement` = "IncNoSuspect")
+for (v in names(inc_key)) { x <- ie(v, "CS"); num_est(paste0(inc_key[[v]], "CS"), x$estimate, x$se) }
 num("EndsMeetTreated", big(alt$info[treat == "endsmeet", treated]))
 num("InsecTreated", big(alt$info[treat == "insec50", treated]))
 
@@ -433,11 +444,11 @@ hs <- hr$summary
 for (e in names(hr_key)) {
   x <- hs[event == e]; k <- paste0("Hr", hr_key[[e]])
   for (nm in c("Mid", "Avg")) num(paste0(k, nm, "SD"), neg(f2(x[window == nm, est_sd])))
-  num(paste0(k, "SharePct"), sprintf("%.0f", 100 * x[window == "Mid", share_treated]))
-  num(paste0(k, "PreP"), pval(x[window == "Mid", pre_p]))
+  num(paste0(k, "SharePct"), sprintf("%.0f", 100 * x[window == "Avg", share_treated]))
+  num(paste0(k, "PreP"), pval(x[window == "Avg", pre_p]))
 }
-num("HrFailPreN", n_word(hs[window == "Mid" & !event %in% names(tr_lab) & pre_p < 0.05, .N]))
-num("HrEventsN", n_word(hs[window == "Mid" & !event %in% names(tr_lab), .N]))
+num("HrFailPreN", n_word(hs[window == "Avg" & !event %in% names(tr_lab) & pre_p < 0.05, .N]))
+num("HrEventsN", n_word(hs[window == "Avg" & !event %in% names(tr_lab), .N]))
 
 # mediation: indirect effects (distance points) and their share of the total effect (with SE)
 md_key <- c(confidence_index = "Conf", satisfaction_gov = "SatGov", alienated = "Alienated", fin_sat = "FinSat",
@@ -533,41 +544,15 @@ pb1 <- base_es(ggplot(fb1, aes(term, estimate, shape = spec, color = spec))) +
 ggsave(fig_path("figB1_assumptions"), pb1, width = 6.5, height = 6)
 
 # Figure B2: Rambachan-Roth bounds
-fb2 <- copy(honest)[, `:=`(treatment_label = factor(tr_lab[treatment], levels = tr_lab),
-                          target_label = factor(c(Avg = "Average, waves 0-8", Mid = "Average, waves 2-4")[target],
-                                                levels = c("Average, waves 2-4", "Average, waves 0-8")))]
+fb2 <- copy(honest)[target == "Avg"][, treatment_label := factor(tr_lab[treatment], levels = tr_lab)]
 pb2 <- ggplot(fb2[!is.na(Mbar)], aes(Mbar, ymin = lb, ymax = ub)) +
   geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
   geom_linerange(linewidth = 0.6) +
   geom_linerange(data = fb2[is.na(Mbar)], aes(x = -0.15), color = "grey50", linewidth = 0.9) +
-  facet_grid(target_label ~ treatment_label) +
-  labs(x = expression(bar(M) ~ "(post-treatment violations relative to the largest pre-treatment violation)"),
-       y = "95% robust confidence interval") + theme_paper()
-ggsave(fig_path("figB2_honestdid"), pb2, width = 6.5, height = 4.2)
-
-# Figure B3: average effect over every window of waves a to b (0 <= a <= b <= 8), main specification;
-# outlined: waves 2-4 and 0-8. Numbers for the text: how many windows are positive and significant.
-allwin <- rbindlist(lapply(names(tr_lab), function(tr) { f <- fit("cs_main", tr)
-  rbindlist(lapply(0:8, function(a) rbindlist(lapply(a:8, function(b) { x <- lc(f, a:b)
-    data.table(treatment = tr, first = a, last = b, estimate = x$estimate, se = x$se) })))) }))
-allwin[, `:=`(sig = abs(estimate / se) > 1.96, treatment_label = factor(tr_lab[treatment], levels = tr_lab))]
-pb3 <- ggplot(allwin, aes(first, last, fill = estimate)) +
-  geom_tile(colour = "white") +
-  geom_text(aes(label = paste0(sub("^(-?)0", "\\1", sprintf("%.2f", estimate)), fifelse(sig, "*", ""))), size = 2.2) +
-  geom_tile(data = allwin[(first == 2 & last == 4) | (first == 0 & last == 8)], fill = NA, colour = "black", linewidth = 0.6,
-            width = 1, height = 1) +
   facet_wrap(~ treatment_label) +
-  scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0) +
-  scale_x_continuous(breaks = 0:8, expand = c(0, 0)) + scale_y_continuous(breaks = 0:8, expand = c(0, 0)) +
-  coord_equal() + labs(x = "First wave after the loss", y = "Last wave after the loss") +
-  theme_paper() + theme(legend.position = "right", panel.grid = element_blank())
-ggsave(fig_path("figB3_windows"), pb3, width = 6.5, height = 3.4)
-for (tr in names(tr_lab)) {
-  x <- allwin[treatment == tr]; k <- tr_key[[tr]]
-  num(paste0(k, "WinPos"), n_word(sum(x$estimate > 0))); num(paste0(k, "WinSig"), n_word(sum(x$sig & x$estimate > 0)))
-  num(paste0(k, "WinMin"), neg(f2(min(x$estimate)))); num(paste0(k, "WinMax"), neg(f2(max(x$estimate))))
-}
-num("WinN", n_word(allwin[treatment == "pinc25", .N]))
+  labs(x = expression(bar(M) ~ "(post-treatment violations relative to the largest pre-treatment violation)"),
+       y = "95% robust confidence interval, waves 0-8") + theme_paper()
+ggsave(fig_path("figB2_honestdid"), pb2, width = 6.5, height = 2.8)
 
 # Figure C1: anticipation of job loss
 # the income module of wave w is fielded between the politics interviews of waves w and w + 1, so its
@@ -596,7 +581,7 @@ pf1 <- ggplot(grp, aes(year, estimate)) +
   theme_paper() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.title = element_text())
 ggsave(fig_path("figF1_cohorts"), pf1, width = 6.5, height = 5.2)
 
-# Figure G1: channels (effects in SD of each outcome, waves 0-1 and 2-4). Party labels: family (name).
+# Figure G1: channels (effects in SD of each outcome, average over waves 0-8). Party labels: family (name).
 g1_lab <- c(fin_sat = "Satisfaction with own finances (0-10)", hh_finsit = "Household finances (1-5)",
             econ_sat = "Satisfaction with the economy (0-10)", happy = "Happiness (0-10)", life_sat = "Life satisfaction (0-10)",
             pol_interest = "Political interest (0-2)", news_int = "Interest in news (0-2)", news_online = "Follows news online (0/1)",
@@ -607,36 +592,33 @@ g1_lab <- c(fin_sat = "Satisfaction with own finances (0-10)", hh_finsit = "Hous
             redist = "Income differences should shrink (1-5)", connected = "Feels connected to others (1-7)",
             gov_mean = "Governing parties (mean rating)", rate_SP = "Radical-left (SP)", rate_PVV = "Far-right (PVV)",
             least_gov = "Least-liked party governs (0/1)")
-g1 <- ch$summary[outcome %in% names(g1_lab) & window %in% c("Early", "Mid")]
+g1 <- ch$summary[outcome %in% names(g1_lab) & window == "Avg"]
 g1[, `:=`(label = factor(g1_lab[outcome], levels = rev(g1_lab)), group = factor(group, levels = unique(ch$spec$group)),
-          window = factor(window, c("Early", "Mid"), c("Waves 0-1", "Waves 2-4")), treatment_label = factor(tr_lab[treatment], levels = tr_lab))]
+          treatment_label = factor(tr_lab[treatment], levels = tr_lab))]
 posg <- position_dodge(width = 0.6)
-pg1 <- ggplot(g1, aes(est_sd, label, shape = window, color = window)) +
+pg1 <- ggplot(g1, aes(est_sd, label)) +
   geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.3) +
-  geom_linerange(aes(xmin = est_sd - 1.96 * se_sd, xmax = est_sd + 1.96 * se_sd), linewidth = 0.35, position = posg) +
-  geom_linerange(aes(xmin = est_sd - 1.645 * se_sd, xmax = est_sd + 1.645 * se_sd), linewidth = 0.9, position = posg) +
-  geom_point(size = 1.6, position = posg, fill = "white") +
-  scale_shape_manual(values = c(21, 16)) + scale_color_manual(values = c("grey45", "black")) +
+  geom_linerange(aes(xmin = est_sd - 1.96 * se_sd, xmax = est_sd + 1.96 * se_sd), linewidth = 0.35) +
+  geom_linerange(aes(xmin = est_sd - 1.645 * se_sd, xmax = est_sd + 1.645 * se_sd), linewidth = 0.9) +
+  geom_point(size = 1.6) +
   facet_grid(group ~ treatment_label, scales = "free_y", space = "free_y", labeller = labeller(group = label_wrap_gen(14))) +
   labs(x = "Effect in standard deviations of the outcome", y = NULL) +
   theme_paper() + theme(strip.text.y = element_text(angle = 0, face = "bold"))
 ggsave(fig_path("figG1_channels"), pg1, width = 6.5, height = 8)
 
 # Figure G2: horse race (dagger: pre-treatment estimates jointly different from zero, p < 0.05)
-g2 <- copy(hs)[window %in% c("Mid", "Avg")]
+g2 <- copy(hs)[window == "Avg"]
 g2[, label := fifelse(!is.na(pre_p) & pre_p < 0.05, paste0(label, " †"), label)]
-g2[, `:=`(label = factor(label, levels = g2[window == "Mid"][order(est_sd), label]),
+g2[, `:=`(label = factor(label, levels = g2[order(est_sd), label]),
           kind = factor(fifelse(event %in% names(tr_lab), "Economic loss (labor-force samples)", "Change in attitude or engagement (all aged 18-65)"),
-                        c("Economic loss (labor-force samples)", "Change in attitude or engagement (all aged 18-65)")),
-          window = factor(window, c("Mid", "Avg"), c("Waves 2-4", "Waves 0-8")))]
-pg2 <- ggplot(g2, aes(est_sd, label, shape = window, color = window)) +
+                        c("Economic loss (labor-force samples)", "Change in attitude or engagement (all aged 18-65)")))]
+pg2 <- ggplot(g2, aes(est_sd, label)) +
   geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.3) +
-  geom_linerange(aes(xmin = est_sd - 1.96 * se_sd, xmax = est_sd + 1.96 * se_sd), linewidth = 0.35, position = posg) +
-  geom_linerange(aes(xmin = est_sd - 1.645 * se_sd, xmax = est_sd + 1.645 * se_sd), linewidth = 0.9, position = posg) +
-  geom_point(size = 1.6, position = posg, fill = "white") +
-  scale_shape_manual(values = c(16, 21)) + scale_color_manual(values = c("black", "grey45")) +
+  geom_linerange(aes(xmin = est_sd - 1.96 * se_sd, xmax = est_sd + 1.96 * se_sd), linewidth = 0.35) +
+  geom_linerange(aes(xmin = est_sd - 1.645 * se_sd, xmax = est_sd + 1.645 * se_sd), linewidth = 0.9) +
+  geom_point(size = 1.6) +
   facet_grid(kind ~ ., scales = "free_y", space = "free_y", labeller = labeller(kind = label_wrap_gen(16))) +
-  labs(x = "Effect on affective polarization (distance), standard deviations", y = NULL) +
+  labs(x = "Effect on affective polarization (distance), waves 0-8, standard deviations", y = NULL) +
   theme_paper() + theme(strip.text.y = element_text(angle = 0, face = "bold"))
 ggsave(fig_path("figG2_horse"), pg2, width = 6.5, height = 4.6, device = cairo_pdf)   # cairo renders the dagger
 
@@ -669,25 +651,24 @@ ggsave(fig_path("figG3_mediation"), pg3, width = 6.5, height = 6.5)
 # panel A: distance and its components (this script's fits); panel B: governing and other parties
 # (15_mechanisms.R; party ratings in waves 2007/08 to 2024/25, cabinet at the time of fieldwork)
 t1_row <- function(y, label, get = function(tr, y) fit("cs_main", tr, y)) {
-  cells <- unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) lc(get(tr, y), nm))), recursive = FALSE)
+  cells <- lapply(names(tr_lab), function(tr) lc(get(tr, y), "Avg"))
   c(sprintf("%s & %s \\\\", label, paste(vapply(cells, function(x) cell(x$estimate, x$se), ""), collapse = " & ")),
     sprintf(" & %s \\\\", paste(vapply(cells, function(x) sprintf("(%s)", f2(x$se)), ""), collapse = " & ")))
 }
 t1_mech <- function(y, label) t1_row(y, label, get = mfit)
-writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
-  "& \\multicolumn{2}{c}{Large income loss} & \\multicolumn{2}{c}{Job loss} \\\\", "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}",
-  "& Waves 0--8 & Waves 2--4 & Waves 0--8 & Waves 2--4 \\\\", "\\midrule",
-  "\\multicolumn{5}{l}{\\emph{A. Distance and its components}} \\\\",
+writeLines(c("\\begin{tabular}{lcc}", "\\toprule",
+  "& Large income loss & Job loss \\\\", "\\midrule",
+  "\\multicolumn{3}{l}{\\emph{A. Distance and its components}} \\\\",
   t1_row("distance", "Affective polarization (distance)"), t1_row("like_max", "Rating of most-liked party"),
   t1_row("like_min", "Rating of least-liked party"), t1_row("spread", "Spread of party ratings"),
-  "\\midrule", "\\multicolumn{5}{l}{\\emph{B. Governing parties and other parties}} \\\\",
+  "\\midrule", "\\multicolumn{3}{l}{\\emph{B. Governing parties and other parties}} \\\\",
   t1_mech("gov_mean", "Mean rating of governing parties"), t1_mech("rate_SP", "Rating of Radical-left (SP)"),
   t1_mech("rate_PVV", "Rating of Far-right (PVV)"), t1_mech("least_gov", "Least-liked party governs (share)"),
   t1_mech("dist2", "Squared distance"), t1_mech("dist2_gov", "\\quad from governing parties"),
   t1_mech("dist2_opp", "\\quad from other parties"), t1_mech("dist_opp", "Distance among parties not in government"),
   "\\midrule",
-  sprintf("People treated & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\", big(fit("cs_main", "pinc25")$n_treated), big(fit("cs_main", "jobloss")$n_treated)),
-  sprintf("People & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\", big(fit("cs_main", "pinc25")$n_units), big(fit("cs_main", "jobloss")$n_units)),
+  sprintf("People treated & %s & %s \\\\", big(fit("cs_main", "pinc25")$n_treated), big(fit("cs_main", "jobloss")$n_treated)),
+  sprintf("People & %s & %s \\\\", big(fit("cs_main", "pinc25")$n_units), big(fit("cs_main", "jobloss")$n_units)),
   "\\bottomrule", "\\end{tabular}"), tab_path("tab1_components"))
 
 
@@ -709,12 +690,11 @@ writeLines(c("\\begin{tabular}{lcc}", "\\toprule", "& Large income loss & Job lo
 
 # Table B1: identification checks, one per assumption ------------------------------------------
 
-b_cells <- function(get) paste(unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) {
-  x <- get(tr, nm); sprintf("%s (%s)", cell(x$estimate, x$se), f2(x$se)) }))), collapse = " & ")
+b_cells <- function(get) paste(vapply(names(tr_lab), function(tr) { x <- get(tr, "Avg"); sprintf("%s (%s)", cell(x$estimate, x$se), f2(x$se)) }, ""), collapse = " & ")
 b_row <- function(label, get) sprintf("%s & %s \\\\", label, b_cells(get))
-writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
-  "& \\multicolumn{2}{c}{Large income loss} & \\multicolumn{2}{c}{Job loss} \\\\", "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}",
-  "Check (assumption it addresses) & Waves 0--8 & Waves 2--4 & Waves 0--8 & Waves 2--4 \\\\", "\\midrule",
+b_two <- function(label, f) sprintf("%s & %s \\\\", label, paste(vapply(names(tr_lab), f, ""), collapse = " & "))
+writeLines(c("\\begin{tabular}{lcc}", "\\toprule",
+  "Check (assumption it addresses) & Large income loss & Job loss \\\\", "\\midrule",
   b_row("Main specification", function(tr, nm) lc(fit("cs_main", tr), nm)),
   b_row("Not-yet-treated controls (comparison group)", function(tr, nm) lc(fit("cs_notyet", tr), nm)),
   b_row("Baseline covariates (selection on observables)", function(tr, nm) lc(fit("cs_covars", tr), nm)),
@@ -725,21 +705,16 @@ writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
   b_row("Same people before and after (no compositional change)", function(tr, nm) lc(fit("wp", tr), nm)),
   b_row("No household members of the treated (no spillovers)", function(tr, nm) lc(fit("cs_nohh", tr), nm)),
   b_row("Same people, weighted for attrition (selective exit)", function(tr, nm) ex_i$attrition[treatment == tr & version == "weighted" & window == nm, .(estimate, se)]),
-  b_row("Imputation estimator (parallel trends in all waves)", function(tr, nm) fit(c(Avg = "bjs_avg", Mid = "bjs_mid")[[nm]], tr)),
+  b_row("Imputation estimator (parallel trends in all waves)", function(tr, nm) fit("bjs_avg", tr)),
   "\\midrule",
-  sprintf("Joint pre-trend test, waves $-5$ to $-2$ ($p$) & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\",
-          pval(pre_p(fit("cs_main", "pinc25"))), pval(pre_p(fit("cs_main", "jobloss")))),
-  sprintf("Smallest pre-trend the test can exclude, waves $-5$ to $-2$ & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\",
-          f2(ex_i$equivalence[treatment == "pinc25", delta]), f2(ex_i$equivalence[treatment == "jobloss", delta])),
-  sprintf("Breakdown $\\bar{M}$, Rambachan--Roth (size of violations) & %s \\\\",
-          paste(unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) {
-            b <- breakdown[treatment == tr & target == nm, Mbar]; if (is.na(b)) "--" else sprintf("%.2f", b) }))), collapse = " & ")),
-  sprintf("Robust 95\\%% interval, linear trend difference ($M = 0$) & %s \\\\",
-          paste(unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) {
-            x <- honest_sd[treatment == tr & target == nm & M == 0]; sprintf("[%s, %s]", neg(f2(x$lb)), neg(f2(x$ub))) }))), collapse = " & ")),
-  sprintf("Breakdown $M$, smoothness (size of violations) & %s \\\\",
-          paste(unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) {
-            b <- breakdown_sd[treatment == tr & target == nm, M]; if (is.na(b)) "--" else sprintf("%.3f", b) }))), collapse = " & ")),
+  b_two("Joint pre-trend test, waves $-5$ to $-2$ ($p$)", function(tr) pval(pre_p(fit("cs_main", tr)))),
+  b_two("Smallest pre-trend the test can exclude, waves $-5$ to $-2$", function(tr) f2(ex_i$equivalence[treatment == tr, delta])),
+  b_two("Breakdown $\\bar{M}$, Rambachan--Roth (size of violations)", function(tr) {
+    b <- breakdown[treatment == tr & target == "Avg", Mbar]; if (is.na(b)) "--" else sprintf("%.2f", b) }),
+  b_two("Robust 95\\% interval, linear trend difference ($M = 0$)", function(tr) {
+    x <- honest_sd[treatment == tr & target == "Avg" & M == 0]; sprintf("[%s, %s]", neg(f2(x$lb)), neg(f2(x$ub))) }),
+  b_two("Breakdown $M$, smoothness (size of violations)", function(tr) {
+    b <- breakdown_sd[treatment == tr & target == "Avg", M]; if (is.na(b)) "--" else sprintf("%.3f", b) }),
   "\\bottomrule", "\\end{tabular}"), tab_path("tabB1_checks"))
 
 
@@ -856,9 +831,9 @@ writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
   sprintf("Total effect (range across mediator samples) & %s \\\\", paste(c(tot_range("pinc25", "A"), tot_range("pinc25", "B"), tot_range("jobloss", "A"), tot_range("jobloss", "B")), collapse = " & ")),
   "\\bottomrule", "\\end{tabular}"), tab_path("tabG2_mediation"))
 
-# Table G1: channels, averages over waves 2-4 in SD of each outcome, with pre-trend tests and sharpened
+# Table G1: channels, averages over waves 0-8 in SD of each outcome, with pre-trend tests and sharpened
 # q-values within each loss
-g2t <- ch$summary[outcome %in% names(g1_lab) & window == "Mid"]
+g2t <- ch$summary[outcome %in% names(g1_lab) & window == "Avg"]
 g2t[, q := sharpened_q(2 * pnorm(-abs(estimate / se))), by = treatment]
 g2_cell <- function(tr, y) { x <- g2t[treatment == tr & outcome == y]
   sprintf("%s & %s & %s", cell_se(x$est_sd, x$se_sd), pval(x$pre_p), sprintf("%.2f", x$q)) }
@@ -896,7 +871,7 @@ h1_lab <- list(
 writeLines(c(ex_head("Measure"),
   unlist(lapply(names(h1_lab), function(pn) c(if (pn != names(h1_lab)[1]) "\\midrule", panel(pn),
     vapply(names(h1_lab[[pn]]), function(y) sprintf("%s & %s \\\\", h1_lab[[pn]][[y]],
-      two_cols(function(tr) ex_cell_sd(ex_m[treatment == tr & outcome == y & window == "Mid"]))), "")))),
+      two_cols(function(tr) ex_cell_sd(ex_m[treatment == tr & outcome == y & window == "Avg"]))), "")))),
   "\\bottomrule", "\\end{tabular}"), tab_path("tabH1_measures"))
 
 # Table C2: size of the income drop, reason for the job loss, unemployment benefit, partner's loss
@@ -907,21 +882,21 @@ c2_lab <- list(
   "Job loss, by unemployment benefit (WW) in the year of the loss or the next" = c(ww_yes = "Receives WW", ww_no = "Does not receive WW"),
   "The partner's loss (own job not lost in the same wave)" = c(partner_job = "Partner loses job", partner_inc = "Partner's income $-$25\\% or more"))
 c2_cell <- function(k) { x <- ex_t$summary[treatment == k]; ce <- function(nm) cell_se(x[window == nm, estimate], x[window == nm, se])
-  sprintf("%s & %s & %s & %s & %s", big(x$n_treated[1]), ce("Avg"), ce("Mid"), ce("CleanMid"), pval(x$pre_p[1])) }
-writeLines(c("\\begin{tabular}{lrcccc}", "\\toprule", "& & \\multicolumn{2}{c}{Baseline wave $-1$} & Baseline $-5$ to $-3$ & \\\\",
-  "\\cmidrule(lr){3-4} \\cmidrule(lr){5-5}", "Treatment & Treated & Waves 0--8 & Waves 2--4 & Waves 2--4 & Pre-trend $p$ \\\\", "\\midrule",
-  unlist(lapply(names(c2_lab), function(pn) c(if (pn != names(c2_lab)[1]) "\\midrule", sprintf("\\multicolumn{6}{l}{\\emph{%s}} \\\\", pn),
+  sprintf("%s & %s & %s & %s", big(x$n_treated[1]), ce("Avg"), ce("CleanAvg"), pval(x$pre_p[1])) }
+writeLines(c("\\begin{tabular}{lrccc}", "\\toprule", "& & \\multicolumn{2}{c}{Average effect, waves 0--8} & \\\\",
+  "\\cmidrule(lr){3-4}", "Treatment & Treated & Baseline wave $-1$ & Baseline waves $-5$ to $-3$ & Pre-trend $p$ \\\\", "\\midrule",
+  unlist(lapply(names(c2_lab), function(pn) c(if (pn != names(c2_lab)[1]) "\\midrule", sprintf("\\multicolumn{5}{l}{\\emph{%s}} \\\\", pn),
     vapply(names(c2_lab[[pn]]), function(k) sprintf("%s & %s \\\\", c2_lab[[pn]][[k]], c2_cell(k)), "")))),
   "\\bottomrule", "\\end{tabular}"), tab_path("tabC2_treatments"))
 
 # Table G3: incumbent blame (waves 2-4)
-gb <- function(tr, an, y, grp) ex_b[treatment == tr & analysis == an & outcome == y & group == grp & window == "Mid"]
-gm <- function(tr, y) ex_m[treatment == tr & outcome == y & window == "Mid"]
+gb <- function(tr, an, y, grp, nm = "Avg") ex_b[treatment == tr & analysis == an & outcome == y & group == grp & window == nm]
+gm <- function(tr, y) ex_m[treatment == tr & outcome == y & window == "Avg"]
 vg <- c(governing = "a governing party", `other party` = "another party", `none named` = "no party named")
 vote_rows <- function(y, label, groups = vg) c(sprintf("%s: & & & & \\\\", label), vapply(names(groups), function(g)
   sprintf("\\quad %s & %s \\\\", groups[[g]], two_cols(function(tr) ex_cell(gb(tr, "by vote in wave -1", y, g)))), ""))
 cs_rows <- function(lab, scale = 1, sd = FALSE) vapply(names(lab), function(y) sprintf("%s & %s \\\\", lab[[y]], two_cols(function(tr) {
-  x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Mid"]; if (sd) ex_cell_sd(x) else ex_cell(x, scale) })), "")
+  x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Avg"]; if (sd) ex_cell_sd(x) else ex_cell(x, scale) })), "")
 g3_rows <- c(
   panel("Party ratings by whether the party governs (0--10)"),
   sprintf("Parties while they govern & %s \\\\", two_cols(function(tr) ex_cell(gb(tr, "party rating by status, all", "party rating", "governing")))),
@@ -946,33 +921,47 @@ status_key <- c(governing = "Gov", `not governing` = "Opp")
 pp_key <- c(intend_gov = "IntendGov", protest = "Protest")
 for (tr in names(tr_lab)) {
   k <- tr_key[[tr]]
-  mx <- function(y) ex_m[treatment == tr & outcome == y & window == "Mid"]
-  num_est(paste0(k, "ConstMid"), mx("dist_const_eq")$estimate, mx("dist_const_eq")$se)
-  for (y in names(inst_key)) num_pe(paste0(k, inst_key[[y]], "Mid"), mx(y)$estimate, mx(y)$se)
-  num(paste0(k, "InstSpreadMidSD"), neg(f2(mx("anchor_sd")$est_sd))); num(paste0(k, "InstMinPreP"), pval(mx("anchor_min")$pre_p))
+  mx <- function(y) ex_m[treatment == tr & outcome == y & window == "Avg"]
+  num_est(paste0(k, "ConstAvg"), mx("dist_const_eq")$estimate, mx("dist_const_eq")$se)
+  for (y in names(inst_key)) num_pe(paste0(k, inst_key[[y]], "Avg"), mx(y)$estimate, mx(y)$se)
+  num(paste0(k, "InstSpreadAvgSD"), neg(f2(mx("anchor_sd")$est_sd))); num(paste0(k, "InstMinPreP"), pval(mx("anchor_min")$pre_p))
   for (st in names(status_key)) {
-    x <- gb(tr, "party rating by status, switchers", "party rating", st); num_pe(paste0(k, "Switch", status_key[[st]], "Mid"), x$estimate, x$se)
+    x <- gb(tr, "party rating by status, switchers", "party rating", st); num_pe(paste0(k, "Switch", status_key[[st]], "Avg"), x$estimate, x$se)
   }
   for (y in names(pp_key)) {      # percentage points
-    x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Mid"]; nm <- paste0(k, pp_key[[y]])
-    num(paste0(nm, "Mid"), neg(sprintf("%.1f", 100 * x$estimate))); num(paste0(nm, "MidSE"), sprintf("%.1f", 100 * x$se)); num(paste0(nm, "PreP"), pval(x$pre_p))
+    x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Avg"]; nm <- paste0(k, pp_key[[y]])
+    num(paste0(nm, "Avg"), neg(sprintf("%.1f", 100 * x$estimate))); num(paste0(nm, "AvgSE"), sprintf("%.1f", 100 * x$se)); num(paste0(nm, "PreP"), pval(x$pre_p))
   }
-  x <- ex_i$attrition[treatment == tr & version == "weighted" & window == "Mid"]; num_est(paste0(k, "IPWMid"), x$estimate, x$se)
+  x <- ex_i$attrition[treatment == tr & version == "weighted" & window == "Avg"]; num_est(paste0(k, "IPWAvg"), x$estimate, x$se)
   x <- ex_i$equivalence[treatment == tr]; num(paste0(k, "EquivDelta"), f2(x$delta)); num(paste0(k, "EquivDeltaSD"), f2(x$delta_sd))
 }
 trt_key <- c(dose_10_25 = "DoseLow", dose_25_50 = "DoseMid", dose_50 = "DoseHigh", reason_closure = "Closure", reason_dismissal = "Dismissal",
              reason_other = "ReasonOther", ww_yes = "WWYes", ww_no = "WWNo", partner_job = "PartnerJob", partner_inc = "PartnerInc")
 for (key in names(trt_key)) {
   x <- ex_t$summary[treatment == key]; k <- trt_key[[key]]
-  for (nm in c("Mid", "Avg", "CleanMid")) num_est(paste0(k, nm), x[window == nm, estimate], x[window == nm, se])
+  for (nm in c("Avg", "CleanAvg")) num_est(paste0(k, nm), x[window == nm, estimate], x[window == nm, se])
   num(paste0(k, "Treated"), big(x$n_treated[1])); num(paste0(k, "PreP"), pval(x$pre_p[1]))
 }
 num("WWSharePct", sprintf("%.0f", 100 * ex_t$ww_share))
 num("SwitchN", n_word(length(ex_bl$switchers)))
+# range of the overall effect across the checks that keep the main comparison (not-yet-treated
+# controls, same people, within sector and occupation, no household members, attrition weights,
+# imputation estimator)
+for (tr in names(tr_lab)) {
+  x <- c(lc(fit("cs_notyet", tr), "Avg")$estimate, lc(fit("wp", tr), "Avg")$estimate, lc(fit("cs_nohh", tr), "Avg")$estimate,
+         ex_s$summary[treatment == tr & version == "matched" & window == "Avg", estimate],
+         ex_i$attrition[treatment == tr & version == "weighted" & window == "Avg", estimate], fit("bjs_avg", tr)$estimate)
+  num(paste0(tr_key[[tr]], "ChecksMin"), neg(f2(min(x)))); num(paste0(tr_key[[tr]], "ChecksMax"), neg(f2(max(x))))
+}
+# effect of currently being unemployed (on/off coding, fect; 19_onoff.R)
+oo <- readRDS(here("results", "estimates", "apsr", "onoff.rds"))
+num_est("OnOffAtt", oo$att$estimate, oo$att$se); num("OnOffPreP", pval(oo$pre_p)); num("OnOffTreated", big(oo$n_treated))
+num_est("OnOffExitOne", oo$off[term == 1, estimate], oo$off[term == 1, se])
+num_est("OnOffEnterZero", oo$es[term == 0, estimate], oo$es[term == 0, se])
 sel_key <- c(matched = "Sector", unmatched = "SectorUnmatched")
 for (tr in names(tr_lab)) {    # selection on sector and occupation (within-person, matched cells)
   k <- tr_key[[tr]]
-  for (v in names(sel_key)) for (nm in c("Mid", "Avg")) {
+  for (v in names(sel_key)) for (nm in "Avg") {
     x <- ex_s$summary[treatment == tr & version == v & window == nm]; num_est(paste0(k, sel_key[[v]], nm), x$estimate, x$se)
   }
   cv <- ex_s$coverage[treatment == tr]; num(paste0(k, "SectorCoveragePct"), sprintf("%.0f", 100 * cv$treated_with_cell / cv$treated_all))
@@ -1026,8 +1015,8 @@ num("ValNOne", big(va$n[year == "2019", study])); num("ValNTwo", big(va$n[year =
 num("ValChangeR", f2(va$changes[x == "dp" & y == "dv", r])); num("ValChangeN", big(va$changes[x == "dp" & y == "dv", n]))
 num("ValChangeSlope", f2(vs_ch$b)); num("ValChangeSlopeCorr", f2(vs_ch$b_corrected)); num("ValRelChange", f2(va$reliability$rel_change_avg))
 num("ValLevelSlope", f2(va$slopes[model == "levels: voter on the note's distance (both years)", b]))
-inc_mid <- lc(fit("cs_main", "pinc25"), "Mid")$estimate
-num("ValImpliedLo", f2(inc_mid * vs_ch$b)); num("ValImpliedHi", f2(inc_mid * vs_ch$b_corrected))
+inc_avg <- lc(fit("cs_main", "pinc25"), "Avg")$estimate    # overall effect, waves 0-8
+num("ValImpliedLo", f2(inc_avg * vs_ch$b)); num("ValImpliedHi", f2(inc_avg * vs_ch$b_corrected))
 num("ValLossInc", n_word(va$losses[treatment == "pinc25", between])); num("ValLossJob", n_word(va$losses[treatment == "jobloss", between]))
 
 
