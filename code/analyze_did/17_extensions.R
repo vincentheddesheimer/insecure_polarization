@@ -1,15 +1,17 @@
 ### Extensions (October 2026): measurement, incumbent blame, treatments, inference
-# Repository analyses requested after the audit; not (yet) in the APSR note. Four parts:
+# Analyses requested after the audit; 14_apsr_note.R turns the saved summaries into SI exhibits. Four parts:
 # 1. Measurement: distance and spread over a constant party set with fixed weights (Kasper,
 #    Schumacher & Bakker 2025); leader-based distance and spread and the rating of the prime
 #    minister vs. opposition leaders (Reiljan et al. 2024); scale-use variants (distance relative to
 #    the person's spread of ratings, highest minus median rating, mean rating, number of parties rated
-#    2 or lower, number of parties rated); Reiljan's partisan affect (API, partisans only).
+#    2 or lower, number of parties rated); Reiljan's partisan affect (API, partisans only); confidence in
+#    six non-political institutions (each, mean, spread, highest and lowest) as a scale-use anchor.
 # 2. Incumbent blame: effects by intended vote in wave -1 (governing party, other party, none) on
 #    distance, the governing parties' ratings and the rating of one's own party; party-level ratings
 #    when the party governs vs. when it does not; vote intention, abstention and protest; anger
 #    (hostile, irritable), anxiety (afraid, nervous), self-esteem and loneliness.
-# 3. Treatments: job loss with vs. without unemployment benefit (proxy for involuntary loss); the
+# 3. Treatments: job loss with vs. without unemployment benefit, and by the reason for leaving the job
+#    (company closure or reorganization, other dismissal, other or no answer; Work and Schooling); the
 #    partner's job loss and income loss as treatments; size of the income loss (dose bins).
 # 4. Inference: equivalence bounds for the pre-trends, attrition weighting.
 #
@@ -17,8 +19,8 @@
 # estimator of 14_apsr_note.R (one employment rule for treated and controls), generalized here to
 # subgroups defined in wave -1, party-level cells, and inverse-probability weights.
 # Needs data/liss_to26.csv, data/liss_politics_to26.csv, data/liss_income_to26.csv, the raw LISS
-# politics, personality, social integration and background files (LISS_RAW), the panels (01) and the
-# refits of 14 (part 4). Saves results/estimates/extensions/*.rds (aggregates only).
+# politics, personality, social integration, background and Work and Schooling files (LISS_RAW) and
+# the panels (01); does not read 14's results. Saves results/estimates/extensions/*.rds (aggregates only).
 # Parts: Sys.setenv(DID_EXT_PARTS = "measurement,blame,treatments,inference"); DID_EXT_REFIT=1 refits.
 
 rm(list = ls())
@@ -57,8 +59,9 @@ summarise_fit <- function(f, sd = NA_real_) rbindlist(lapply(c("Early", "Mid", "
 
 parties <- c("VVD", "D66", "PVV", "CDA", "SP", "PvdA", "GL", "PvdD", "CU", "SGP", "FvD", "TON", "Volt",
              "JA21", "DENK", "50PLUS", "BBB", "BIJ1", "VNL", "NSC", "GL_PvdA")
-# trust in six non-political institutions (0-10): anchors for the person's general use of the scale
-anchor_items <- paste0("satisfac_", c("police", "media", "military", "edusys", "healthcare", "science"))
+# confidence in six non-political institutions (0-10; the block of the note's confidence index, items
+# 016 and 021-025): anchors for the person's general use of the scale
+anchor_items <- paste0("conf_", c("police", "media", "military", "edusys", "healthcare", "science"))
 pol <- fread(here("data", "liss_politics_to26.csv"),
              select = c("nomem_encr", "wave", "distance", "partisan_affect", paste0("thermo_", parties),
                         grep("^vote_today_", names(fread(here("data", "liss_politics_to26.csv"), nrows = 0)), value = TRUE),
@@ -88,7 +91,7 @@ m_const <- const[, if (.N >= 2) .(dist_const_eq = wd(rating, rep(1, .N)), spread
                                   dist_const_fix = wd(rating, w)), by = .(nomem_encr, wave)]
 
 # 1b. scale use (all rated parties)
-m_scale <- th[, if (.N >= 2) .(mean_rating = mean(rating), max_rating = max(rating), rank_gap = max(rating) - median(rating), n_low = sum(rating <= 2),
+m_scale <- th[, if (.N >= 2) .(mean_rating = mean(rating), max_rating = max(rating), min_rating = min(rating), rank_gap = max(rating) - median(rating), n_low = sum(rating <= 2),
                                n_rated = .N, sd_rating = sd(rating)), by = .(nomem_encr, wave)]
 m_scale <- merge(m_scale, pol[, .(nomem_encr, wave, distance)], by = c("nomem_encr", "wave"))
 m_scale[, dist_rel := fifelse(sd_rating > 0, distance / sd_rating, NA_real_)][, sd_rating := NULL]
@@ -96,8 +99,10 @@ m_scale[, dist_rel := fifelse(sd_rating > 0, distance / sd_rating, NA_real_)][, 
 # If the loss made people use the ends of the scale more, the spread of these ratings would rise too.
 an <- melt(pol[, c("nomem_encr", "wave", anchor_items), with = FALSE], id.vars = c("nomem_encr", "wave"), value.name = "r")
 an <- an[, r := in_range(r, 0, 10)][!is.na(r)]
-m_scale <- merge(m_scale, an[, if (.N >= 4) .(anchor_sd = sd(r), anchor_mean = mean(r)), by = .(nomem_encr, wave)],
+m_scale <- merge(m_scale, an[, if (.N >= 4) .(anchor_sd = sd(r), anchor_mean = mean(r), anchor_max = max(r), anchor_min = min(r)), by = .(nomem_encr, wave)],
                  by = c("nomem_encr", "wave"), all = TRUE)
+# each institution separately (which ones move)
+m_inst <- dcast(an[, variable := sub("conf_", "inst_", variable)], nomem_encr + wave ~ variable, value.var = "r")
 # distance net of the general spread: both in standard deviations (all person-waves), difference
 m_scale[, dist_net_anchor := distance / sd(distance, na.rm = TRUE) - anchor_sd / sd(anchor_sd, na.rm = TRUE)][, distance := NULL]
 
@@ -175,7 +180,7 @@ m_emo <- merge(pers[, .(nomem_encr, wave, anger, anxiety, self_esteem)], soc[, .
                by = c("nomem_encr", "wave"), all = TRUE)
 
 ext <- Reduce(function(a, b) merge(a, b, by = c("nomem_encr", "wave"), all = TRUE),
-              list(m_const, m_scale, m_lead, m_vote[, !c("vote_party", "vote_gov")], m_emo))
+              list(m_const, m_scale, m_inst, m_lead, m_vote[, !c("vote_party", "vote_gov")], m_emo))
 setnames(ext, "nomem_encr", "id")
 
 panels <- load_panels()
@@ -235,8 +240,12 @@ meas_spec <- c(dist_const_eq = "Distance, constant party set, equal weights", sp
                dist_rel = "Distance relative to the person's spread of ratings", rank_gap = "Highest minus median party rating",
                mean_rating = "Mean party rating", n_low = "Number of parties rated 2 or lower", n_rated = "Number of parties rated",
                partisan_affect = "Partisan affect (API, partisans only)", distance = "Distance (main)",
-               anchor_sd = "Spread of trust in non-political institutions", anchor_mean = "Mean trust in non-political institutions",
-               max_rating = "Rating of the highest-rated party", dist_net_anchor = "Distance minus spread of institution trust (both in SD)")
+               anchor_sd = "Spread of confidence in non-political institutions", anchor_mean = "Mean confidence in non-political institutions",
+               max_rating = "Rating of the highest-rated party", dist_net_anchor = "Distance minus spread of institution confidence (both in SD)",
+               min_rating = "Rating of the lowest-rated party", anchor_max = "Highest confidence among the six institutions",
+               anchor_min = "Lowest confidence among the six institutions",
+               inst_police = "Confidence in the police", inst_media = "Confidence in the media", inst_military = "Confidence in the military",
+               inst_edusys = "Confidence in the education system", inst_healthcare = "Confidence in health care", inst_science = "Confidence in science")
 if ("measurement" %in% parts) {
   keys <- CJ(tr = names(tr_lab), y = names(meas_spec))[, paste(tr, y, sep = "|")]
   fits <- cached_fits("measurement", keys, function(k) { s <- strsplit(k, "|", fixed = TRUE)[[1]]; cs_fit(px[[s[1]]], s[2]) })
@@ -276,16 +285,17 @@ if ("blame" %in% parts) {
   }
   # 2b. party-level ratings by whether the party governs in wave t: cells = party x cohort x wave;
   # the contrast between governing and not governing compares the same parties over time
+  # parties rated in every wave; switchers: governing in some cabinet waves and not in others
+  ps <- c("CDA", "PvdA", "VVD", "D66", "CU", "PVV", "SP", "GL")
+  switchers <- ps[vapply(ps, function(p) uniqueN(cabinet$wave[cabinet$party == p]) %in% seq_len(uniqueN(cabinet$wave) - 1L), logical(1))]
   blame_by_status <- function(tr) {
     d <- px[[paste0(tr, "_all")]]
-    ps <- c("CDA", "PvdA", "VVD", "D66", "CU", "PVV", "SP", "GL")
     r <- rbindlist(lapply(ps, function(p) {
       dp <- merge(d, th[party == p, .(id = nomem_encr, wave, r_p = rating)], by = c("id", "wave"), all.x = TRUE)
       stack_rows(dp, "r_p")[, party := p]
     }))
     r[cabinet[, .(wave, party, g_t = TRUE)], on = c(wave_t = "wave", "party"), status := "governing"][is.na(status), status := "not governing"]
     r <- r[wave_t %in% cabinet$wave]
-    switchers <- c("CDA", "PvdA", "D66", "CU", "PVV")   # parties observed both in and out of cabinet
     list(all = cell_did(r, "status", "party"), switchers = cell_did(r[party %in% switchers], "status", "party"))
   }
   keys <- c(paste0(names(tr_lab), "|by_vote"), paste0(names(tr_lab), "|by_status"))
@@ -306,7 +316,7 @@ if ("blame" %in% parts) {
   blame <- rbindlist(bl, fill = TRUE)
   # contrasts between groups (independent samples for vote groups; status contrast from the same people:
   # conservative SE without covariance)
-  saveRDS(list(fits_stacked = fits_b, fits_cs = fits_c, summary = blame), path_est("extensions", "blame_summary"))
+  saveRDS(list(fits_stacked = fits_b, fits_cs = fits_c, summary = blame, switchers = switchers), path_est("extensions", "blame_summary"))
   message("blame (waves 2-4):"); print(blame[window == "Mid", .(treatment, analysis, outcome, group, est = round(estimate, 3), se = round(se, 3), pre = round(pre_p, 2), n_treated)])
 }
 
@@ -356,8 +366,30 @@ if ("treatments" %in% parts) {
   inc <- fread(here("data", "liss_income_to26.csv"), select = c("nomem_encr", "wave", "b_unempl"))[, .(id = nomem_encr, wave, ww = b_unempl %in% 1)]
   jl <- copy(px$jobloss)
   ww_ev <- unique(jl[G > 0, .(id, gw = G + 7L)])
-  ww_ev <- merge(ww_ev, inc, by = "id", allow.cartesian = TRUE)[wave %in% c(gw, gw + 1L), .(ww = any(ww)), by = id]
+  ww_ev <- merge(ww_ev, inc, by = "id", allow.cartesian = TRUE)[wave - gw >= 0L & wave - gw <= 1L, .(ww = any(ww)), by = id]   # row-wise: waves g and g + 1
   jl[ww_ev, on = "id", ww := i.ww]
+  # 3b. reason for the job loss: "For what reason did you stop working?" (Work and Schooling, cw*326),
+  # asked of people not in paid work in April/May; taken from the first module after the loss (fielded
+  # in calendar year 1999 + g or 2000 + g, between the politics interviews of waves g - 1 and g + 1),
+  # if the year the person stopped working (cw*319) is missing or within 1998 + g to 2000 + g.
+  # Closure: dismissed due to company closure or reorganization (code 9); other dismissal: end of a
+  # (temporary) contract or dismissed for other reasons (11, 12); other: any other reason or no answer
+  # (mostly back in work by the time of the module). Read from the zips in LISS_RAW/work_schooling/zip.
+  read_ws <- function() {
+    td <- tempfile("ws"); dir.create(td); on.exit(unlink(td, recursive = TRUE))
+    rbindlist(lapply(list.files(file.path(raw, "work_schooling", "zip"), pattern = "^cw[0-9]{2}[a-z].*[.]zip$", full.names = TRUE), function(z) {
+      f <- unzip(z, exdir = td, junkpaths = TRUE); on.exit(unlink(f))
+      pre <- sub("_EN.*", "", basename(z)); v <- paste0(pre, c("326", "319"))
+      d <- as.data.table(suppressWarnings(read.dta13(f, select.cols = c("nomem_encr", v), convert.factors = FALSE)))
+      setnames(d, c("nomem_encr", v), c("id", "reason", "year_stop"))      # by name: read.dta13 keeps file order
+      d[!is.na(reason)][, ws_year := 2000L + as.integer(substr(pre, 3, 4))][]
+    }))
+  }
+  ws <- read_ws()
+  rs <- merge(unique(jl[G > 0, .(id, g = G + 7L)]), ws, by = "id")[ws_year - g >= 1999L & ws_year - g <= 2000L]
+  rs <- rs[is.na(year_stop) | (year_stop - g >= 1998L & year_stop - g <= 2000L)][order(id, ws_year)][, .SD[1], by = id]
+  jl[rs, on = "id", reason := i.reason]
+  jl[G > 0, reason_grp := fcase(reason %in% 9, "closure", reason %in% c(11, 12), "dismissal", default = "other")]
   # 3c. size of the first income drop of 10 percent or more (after an employed wave): 10-25, 25-50, 50+;
   # never treated: no drop of 10 percent or more; sample rules as in 01_sample.R
   liss <- fread(here("data", "liss_to26.csv"), select = c("nomem_encr", "wave", "age", "occupation", "net_monthly_income", "distance"))
@@ -376,11 +408,14 @@ if ("treatments" %in% parts) {
   }
   pp <- read_partners()
   tp <- list(ww_yes = function() jl[G == 0 | ww %in% TRUE], ww_no = function() jl[G == 0 | ww %in% FALSE],
+             reason_closure = function() jl[G == 0 | reason_grp %in% "closure"],
+             reason_dismissal = function() jl[G == 0 | reason_grp %in% "dismissal"],
+             reason_other = function() jl[G == 0 | reason_grp %in% "other"],
              partner_job = function() partner_panel(pp, "job"), partner_inc = function() partner_panel(pp, "inc"),
              dose_10_25 = function() dose_panel(0.10, 0.25), dose_25_50 = function() dose_panel(0.25, 0.50), dose_50 = function() dose_panel(0.50, Inf))
   fits_t <- cached_fits("treatments", names(tp), function(k) cs_fit(tp[[k]](), "distance"))
   trt <- rbindlist(lapply(names(fits_t), function(k) if (!is.null(fits_t[[k]])) summarise_fit(fits_t[[k]], sd_of("distance"))[, treatment := k]))
-  saveRDS(list(fits = fits_t, summary = trt, ww_share = jl[G > 0, mean(ww %in% TRUE)]), path_est("extensions", "treatments_summary"))
+  saveRDS(list(fits = fits_t, summary = trt, ww_share = jl[G > 0, mean(ww %in% TRUE)], reasons = unique(jl[G > 0, .(id, reason, reason_grp)])[, .N, by = .(reason_grp, reason)]), path_est("extensions", "treatments_summary"))
   message("treatments (distance, waves 2-4):"); print(trt[window == "Mid", .(treatment, est = round(estimate, 3), se = round(se, 3), pre = round(pre_p, 2), n_treated)])
 }
 
@@ -388,12 +423,12 @@ if ("treatments" %in% parts) {
 # 4. Inference --------------------------------------------------------------------------
 
 if ("inference" %in% parts) {
-  apsr <- readRDS(path_est("apsr", "refits"))
-  sd_d <- apsr$sds[outcome == "distance", sd_pw]
+  sd_d <- sd_of("distance")
+  main <- cached_fits("inference", paste0(names(tr_lab), "|main"), function(k) cs_fit(px[[sub("[|].*", "", k)]], "distance"))
   # 4a. equivalence: the smallest bound delta such that every pre-treatment estimate (waves -5 to -2)
   # lies within [-delta, delta] at the 5 percent level (intersection-union test)
   eqv <- rbindlist(lapply(names(tr_lab), function(tr) {
-    f <- apsr[[paste("cs_main", tr, "all", "distance", sep = "|")]]
+    f <- main[[paste0(tr, "|main")]]
     k <- intersect(as.character(-5:-2), names(f$b))
     data.table(treatment = tr, delta = max(abs(f$b[k]) + qnorm(0.95) * sqrt(diag(f$V)[k])))[, delta_sd := delta / sd_d][]
   }))
@@ -419,7 +454,7 @@ if ("inference" %in% parts) {
     r[is.na(ipw), ipw := 1]
     list(unweighted = cell_did(r)[[1]], weighted = cell_did(r, w = "ipw")[[1]])
   }
-  fits_i <- cached_fits("inference", paste0(names(tr_lab), "|ipw"), function(k) ipw_fit(sub("[|].*", "", k)))
+  fits_i <- cached_fits("inference", paste0(names(tr_lab), "|ipw"), function(k) ipw_fit(sub("[|].*", "", k)))[paste0(names(tr_lab), "|ipw")]
   att <- rbindlist(lapply(names(fits_i), function(k) rbindlist(lapply(names(fits_i[[k]]), function(v)
     summarise_fit(fits_i[[k]][[v]], sd_d)[, `:=`(treatment = sub("[|].*", "", k), version = v)]))))
   saveRDS(list(equivalence = eqv, attrition = att), path_est("extensions", "inference_summary"))

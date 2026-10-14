@@ -19,7 +19,7 @@
 # Mechanism outcomes (00_setup.R mechanism_labels): confidence in institutions, satisfaction.
 # Generalized trust and heterophily are fielded between politics interviews and use wave -2 as the
 # reference (shift_between() in 00_setup.R).
-# Run order: 01_sample.R, then 10, 12, 13, 15 and 16 (their saved results are read here), then this
+# Run order: 01_sample.R, then 10, 12, 13, 15, 16 and 17 (their saved results are read here), then this
 # script. CS is fitted with analytic (influence-function) standard errors, so that averages over waves
 # have their full covariance; BJS window averages use didimputation's weights. Fits are cached in
 # results/estimates/apsr/refits.rds with a tag of the panels and definitions (cache_tag() in
@@ -47,7 +47,7 @@ mech <- names(mechanism_labels)
 sm_key <- c(all = "", men = "Men", women = "Women")
 
 
-# Saved results of 10, 12, 13, 15 and 16 (rerun on the current data) -------------------------
+# Saved results of 10, 12, 13, 15, 16 and 17 (rerun on the current data) ---------------------
 
 fu  <- readRDS(here("results", "estimates", "followups", "followups.rds"))
 alt <- readRDS(here("results", "estimates", "alt", "alt.rds"))
@@ -57,6 +57,11 @@ ch  <- readRDS(here("results", "estimates", "mechanisms", "channels_summary.rds"
 hr  <- readRDS(here("results", "estimates", "mechanisms", "horse_summary.rds"))
 md  <- readRDS(here("results", "estimates", "mechanisms", "mediation_summary.rds"))
 mfit <- function(tr, y) ch$fits[[paste(tr, y, sep = "|")]]
+# 17_extensions.R: measurement, blame, treatments, inference (summaries only)
+ex_m <- readRDS(here("results", "estimates", "extensions", "measurement_summary.rds"))$summary
+ex_bl <- readRDS(here("results", "estimates", "extensions", "blame_summary.rds")); ex_b <- ex_bl$summary
+ex_t <- readRDS(here("results", "estimates", "extensions", "treatments_summary.rds"))
+ex_i <- readRDS(here("results", "estimates", "extensions", "inference_summary.rds"))
 
 
 # Refits ----------------------------------------------------------------------
@@ -692,10 +697,13 @@ writeLines(c("\\begin{tabular}{lcccc}", "\\toprule",
   b_row("Waves $-5$ to $-3$ as baseline (no anticipation)", function(tr, nm) lc(fit("cs_main", tr), paste0("Clean", nm))),
   b_row("Same people before and after (no compositional change)", function(tr, nm) lc(fit("wp", tr), nm)),
   b_row("No household members of the treated (no spillovers)", function(tr, nm) lc(fit("cs_nohh", tr), nm)),
+  b_row("Same people, weighted for attrition (selective exit)", function(tr, nm) ex_i$attrition[treatment == tr & version == "weighted" & window == nm, .(estimate, se)]),
   b_row("Imputation estimator (parallel trends in all waves)", function(tr, nm) fit(c(Avg = "bjs_avg", Mid = "bjs_mid")[[nm]], tr)),
   "\\midrule",
   sprintf("Joint pre-trend test, waves $-5$ to $-2$ ($p$) & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\",
           pval(pre_p(fit("cs_main", "pinc25"))), pval(pre_p(fit("cs_main", "jobloss")))),
+  sprintf("Smallest pre-trend the test can exclude, waves $-5$ to $-2$ & \\multicolumn{2}{c}{%s} & \\multicolumn{2}{c}{%s} \\\\",
+          f2(ex_i$equivalence[treatment == "pinc25", delta]), f2(ex_i$equivalence[treatment == "jobloss", delta])),
   sprintf("Breakdown $\\bar{M}$, Rambachan--Roth (size of violations) & %s \\\\",
           paste(unlist(lapply(names(tr_lab), function(tr) lapply(c("Avg", "Mid"), function(nm) {
             b <- breakdown[treatment == tr & target == nm, Mbar]; if (is.na(b)) "--" else sprintf("%.2f", b) }))), collapse = " & ")),
@@ -834,6 +842,109 @@ writeLines(c("\\begin{tabular}{lcccccc}", "\\toprule",
   "\\bottomrule", "\\end{tabular}"), tab_path("tabG1_channels"))
 num("ChannelsQSigInc", g2t[treatment == "pinc25" & q < 0.05, .N]); num("ChannelsQSigJob", g2t[treatment == "jobloss" & q < 0.05, .N])
 num("ChannelsN", uniqueN(g2t$outcome))
+
+
+# Extensions (17_extensions.R): Tables C2, G3 and H1, and their numbers -------------------------
+# All estimates are Callaway-Sant'Anna averages over waves 2-4 (and 0-8 in C2), except the stacked
+# within-person cells of 17 (party ratings by cabinet status, groups by intended vote in wave -1).
+ex_cell <- function(x, scale = 1) if (!nrow(x)) "& " else sprintf("%s & %s", cell_se(scale * x$estimate, scale * x$se), pval(x$pre_p))
+ex_cell_sd <- function(x) if (!nrow(x)) "& " else sprintf("%s & %s", cell_se(x$est_sd, x$se_sd), pval(x$pre_p))
+two_cols <- function(get) paste(get("pinc25"), get("jobloss"), sep = " & ")
+ex_head <- function(unit) c("\\begin{tabular}{lcccc}", "\\toprule",
+  "& \\multicolumn{2}{c}{Large income loss} & \\multicolumn{2}{c}{Job loss} \\\\", "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5}",
+  sprintf("%s & Effect (SE) & Pre-trend $p$ & Effect (SE) & Pre-trend $p$ \\\\", unit), "\\midrule")
+panel <- function(title) sprintf("\\multicolumn{5}{l}{\\emph{%s}} \\\\", title)
+
+# Table H1: alternative measures and scale use (SD of each measure, waves 2-4)
+h1_lab <- list(
+  "Affective polarization" = c(distance = "Distance (main measure)", dist_const_eq = "Distance, same six parties in every wave",
+    dist_const_fix = "\\quad with fixed vote-share weights", spread_const_eq = "Spread, same six parties",
+    lead_dist = "Distance between party leaders", lead_spread = "Spread of party-leader ratings",
+    partisan_affect = "Affective polarization index, partisans only"),
+  "Party ratings and use of the scale" = c(max_rating = "Rating of the most-liked party", min_rating = "Rating of the least-liked party",
+    mean_rating = "Mean party rating", n_low = "Number of parties rated 2 or lower", n_rated = "Number of parties rated"),
+  "Confidence in six non-political institutions (0--10)" = c(anchor_max = "Highest-rated institution", anchor_min = "Lowest-rated institution",
+    anchor_mean = "Mean", anchor_sd = "Spread (standard deviation across the six)", inst_media = "The media", inst_military = "The military",
+    inst_police = "The police", inst_science = "Science", inst_healthcare = "Health care", inst_edusys = "The education system"))
+writeLines(c(ex_head("Measure"),
+  unlist(lapply(names(h1_lab), function(pn) c(if (pn != names(h1_lab)[1]) "\\midrule", panel(pn),
+    vapply(names(h1_lab[[pn]]), function(y) sprintf("%s & %s \\\\", h1_lab[[pn]][[y]],
+      two_cols(function(tr) ex_cell_sd(ex_m[treatment == tr & outcome == y & window == "Mid"]))), "")))),
+  "\\bottomrule", "\\end{tabular}"), tab_path("tabH1_measures"))
+
+# Table C2: size of the income drop, reason for the job loss, unemployment benefit, partner's loss
+c2_lab <- list(
+  "Size of the first drop in personal income of 10\\% or more" = c(dose_10_25 = "10 to 25\\%", dose_25_50 = "25 to 50\\%", dose_50 = "50\\% or more"),
+  "Job loss, by the reason for leaving the job (Work and Schooling)" = c(reason_closure = "Company closure or reorganization",
+    reason_dismissal = "End of contract or other dismissal", reason_other = "Other reason, or none recorded (mostly back in work)"),
+  "Job loss, by unemployment benefit (WW) in the year of the loss or the next" = c(ww_yes = "Receives WW", ww_no = "Does not receive WW"),
+  "The partner's loss (own job not lost in the same wave)" = c(partner_job = "Partner loses job", partner_inc = "Partner's income $-$25\\% or more"))
+c2_cell <- function(k) { x <- ex_t$summary[treatment == k]
+  sprintf("%s & %s & %s & %s", big(x$n_treated[1]), cell_se(x[window == "Avg", estimate], x[window == "Avg", se]),
+          cell_se(x[window == "Mid", estimate], x[window == "Mid", se]), pval(x$pre_p[1])) }
+writeLines(c("\\begin{tabular}{lrccc}", "\\toprule", "Treatment & Treated & Waves 0--8 & Waves 2--4 & Pre-trend $p$ \\\\", "\\midrule",
+  unlist(lapply(names(c2_lab), function(pn) c(if (pn != names(c2_lab)[1]) "\\midrule", sprintf("\\multicolumn{5}{l}{\\emph{%s}} \\\\", pn),
+    vapply(names(c2_lab[[pn]]), function(k) sprintf("%s & %s \\\\", c2_lab[[pn]][[k]], c2_cell(k)), "")))),
+  "\\bottomrule", "\\end{tabular}"), tab_path("tabC2_treatments"))
+
+# Table G3: incumbent blame (waves 2-4)
+gb <- function(tr, an, y, grp) ex_b[treatment == tr & analysis == an & outcome == y & group == grp & window == "Mid"]
+gm <- function(tr, y) ex_m[treatment == tr & outcome == y & window == "Mid"]
+vg <- c(governing = "a governing party", `other party` = "another party", `none named` = "no party named")
+vote_rows <- function(y, label, groups = vg) c(sprintf("%s: & & & & \\\\", label), vapply(names(groups), function(g)
+  sprintf("\\quad %s & %s \\\\", groups[[g]], two_cols(function(tr) ex_cell(gb(tr, "by vote in wave -1", y, g)))), ""))
+cs_rows <- function(lab, scale = 1, sd = FALSE) vapply(names(lab), function(y) sprintf("%s & %s \\\\", lab[[y]], two_cols(function(tr) {
+  x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Mid"]; if (sd) ex_cell_sd(x) else ex_cell(x, scale) })), "")
+g3_rows <- c(
+  panel("Party ratings by whether the party governs (0--10)"),
+  sprintf("Parties while they govern & %s \\\\", two_cols(function(tr) ex_cell(gb(tr, "party rating by status, all", "party rating", "governing")))),
+  sprintf("\\quad the same parties while not governing & %s \\\\", two_cols(function(tr) ex_cell(gb(tr, "party rating by status, switchers", "party rating", "not governing")))),
+  sprintf("All parties while not governing & %s \\\\", two_cols(function(tr) ex_cell(gb(tr, "party rating by status, all", "party rating", "not governing")))),
+  sprintf("Prime minister & %s \\\\", two_cols(function(tr) ex_cell(gm(tr, "pm_rating")))),
+  sprintf("Prime minister minus opposition leaders & %s \\\\", two_cols(function(tr) ex_cell(gm(tr, "pm_minus_opp")))),
+  "\\midrule", panel("By the party the person intended to vote for in wave $-1$"),
+  vote_rows("distance", "Distance"), vote_rows("gov_mean", "Mean rating of the governing parties"),
+  vote_rows("own_party", "Rating of that party", groups = vg[1:2]),
+  "\\midrule", panel("Vote intention and protest (percentage points)"),
+  cs_rows(c(intend_gov = "Would vote for a governing party", intend_PVV = "Would vote Far-right (PVV)", intend_SP = "Would vote Radical-left (SP)",
+            intend_none = "Names no party", protest = "Took part in a protest action, march or demonstration"), scale = 100),
+  "\\midrule", panel("Emotions and self-regard (standard deviations)"),
+  cs_rows(c(anger = "Anger (hostile, irritable)", anxiety = "Anxiety (afraid, nervous)", self_esteem = "Self-esteem", loneliness = "Loneliness"), sd = TRUE))
+writeLines(c(ex_head("Outcome"), g3_rows, "\\bottomrule", "\\end{tabular}"), tab_path("tabG3_blame"))
+
+# numbers for the text (num_est: distance outcomes, with SD of distance; num_pe: other outcomes, in points)
+num_pe <- function(name, e, s) { num(name, neg(f2(e))); num(paste0(name, "SE"), f2(s)) }
+inst_key <- c(anchor_min = "InstMin", anchor_max = "InstMax", inst_media = "InstMedia", anchor_sd = "InstSpread", pm_rating = "PM")
+status_key <- c(governing = "Gov", `not governing` = "Opp")
+pp_key <- c(intend_gov = "IntendGov", protest = "Protest")
+for (tr in names(tr_lab)) {
+  k <- tr_key[[tr]]
+  mx <- function(y) ex_m[treatment == tr & outcome == y & window == "Mid"]
+  num_est(paste0(k, "ConstMid"), mx("dist_const_eq")$estimate, mx("dist_const_eq")$se)
+  for (y in names(inst_key)) num_pe(paste0(k, inst_key[[y]], "Mid"), mx(y)$estimate, mx(y)$se)
+  num(paste0(k, "InstSpreadMidSD"), neg(f2(mx("anchor_sd")$est_sd))); num(paste0(k, "InstMinPreP"), pval(mx("anchor_min")$pre_p))
+  for (st in names(status_key)) {
+    x <- gb(tr, "party rating by status, switchers", "party rating", st); num_pe(paste0(k, "Switch", status_key[[st]], "Mid"), x$estimate, x$se)
+  }
+  for (y in names(pp_key)) {      # percentage points
+    x <- ex_b[treatment == tr & analysis == "CS" & outcome == y & window == "Mid"]; nm <- paste0(k, pp_key[[y]])
+    num(paste0(nm, "Mid"), neg(sprintf("%.1f", 100 * x$estimate))); num(paste0(nm, "MidSE"), sprintf("%.1f", 100 * x$se)); num(paste0(nm, "PreP"), pval(x$pre_p))
+  }
+  x <- ex_i$attrition[treatment == tr & version == "weighted" & window == "Mid"]; num_est(paste0(k, "IPWMid"), x$estimate, x$se)
+  x <- ex_i$equivalence[treatment == tr]; num(paste0(k, "EquivDelta"), f2(x$delta)); num(paste0(k, "EquivDeltaSD"), f2(x$delta_sd))
+}
+trt_key <- c(dose_10_25 = "DoseLow", dose_25_50 = "DoseMid", dose_50 = "DoseHigh", reason_closure = "Closure", reason_dismissal = "Dismissal",
+             reason_other = "ReasonOther", ww_yes = "WWYes", ww_no = "WWNo", partner_job = "PartnerJob", partner_inc = "PartnerInc")
+for (key in names(trt_key)) {
+  x <- ex_t$summary[treatment == key]; k <- trt_key[[key]]
+  for (nm in c("Mid", "Avg")) num_est(paste0(k, nm), x[window == nm, estimate], x[window == nm, se])
+  num(paste0(k, "Treated"), big(x$n_treated[1])); num(paste0(k, "PreP"), pval(x$pre_p[1]))
+}
+num("WWSharePct", sprintf("%.0f", 100 * ex_t$ww_share))
+num("SwitchN", n_word(length(ex_bl$switchers)))
+rs <- ex_t$reasons[, .(N = sum(N)), by = reason_grp]
+num("ReasonClosureN", big(rs[reason_grp == "closure", N])); num("ReasonDismissalN", big(rs[reason_grp == "dismissal", N]))
+num("ReasonAnyPct", sprintf("%.0f", 100 * ex_t$reasons[!is.na(reason), sum(N)] / sum(rs$N)))
 
 
 # numbers.tex ----------------------------------------------------------------------------------
