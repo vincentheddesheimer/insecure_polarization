@@ -2,6 +2,14 @@
 
 This repository contains code and data for analyzing the relationship between economic insecurity and affective polarization using the LISS panel survey data from the Netherlands.
 
+## Current analysis (October 2026)
+
+The sections below describe an earlier version of the project. The current analysis is a staggered difference-in-differences design (Callaway-Sant'Anna, doubly robust) in `code/analyze_did/`:
+
+- `code/analyze_did/SPEC.md` documents the data, treatments, outcomes, estimators, checks, every analysis script (01 to 19) and the open items.
+- `bash code/run_apsr.sh` rebuilds the data and every number, table and figure in order (about two hours). It needs the raw LISS files (licensed, from the LISS archive; paths in `code/build/liss/00_paths.R` and `.Renviron`).
+- Packages are pinned with renv (`renv.lock`).
+
 ## Project Overview
 
 This project investigates how economic insecurity affects affective polarization using longitudinal data from the LISS panel survey. The analysis focuses on three main treatments:
