@@ -483,16 +483,9 @@ base_es <- function(p) p +
   geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
   geom_vline(xintercept = -0.5, linetype = "dotted", linewidth = 0.3)
 
-# critical value of a 95% sup-t band over the event times shown (simulated from the estimated covariance)
-supt_crit <- function(V, draws = 1e5) {
-  set.seed(14); R <- cov2cor(V); z <- matrix(rnorm(draws * ncol(R)), draws) %*% chol(R)
-  unname(quantile(apply(abs(z), 1, max), 0.95))
-}
-# Figure 1: main event studies, with pointwise 95% and 90% intervals and the 95% sup-t band (grey)
+# Figure 1: main event studies, with pointwise 95% and 90% intervals
 f1 <- in_window(es_panel("cs_main"))
-f1[, crit := supt_crit(fit("cs_main", names(tr_lab)[match(as.character(treatment_label), tr_lab)][1])$V), by = treatment_label]
 p1 <- base_es(ggplot(f1, aes(term, estimate))) +
-  geom_linerange(aes(ymin = estimate - crit * se, ymax = estimate + crit * se), color = "grey80", linewidth = 2.4, na.rm = TRUE) +
   geom_linerange(aes(ymin = estimate - 1.96 * se, ymax = estimate + 1.96 * se), linewidth = 0.35, na.rm = TRUE) +
   geom_linerange(aes(ymin = estimate - 1.645 * se, ymax = estimate + 1.645 * se), linewidth = 0.9, na.rm = TRUE) +
   geom_point(size = 1.8) + facet_wrap(~ treatment_label, ncol = 2) +
