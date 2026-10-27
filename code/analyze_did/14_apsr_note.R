@@ -331,8 +331,8 @@ num("PrLoseTwo", sprintf("%.0f", plj[term == -2, estimate])); num("PrLoseOne", s
 num("PrLoseMeanNever", sprintf("%.0f", dip$pr_lose_mean[group == "never unemployed", mean]))
 num("PrLoseMeanLosers", sprintf("%.0f", dip$pr_lose_mean[group == "job losers, pre-treatment", mean]))
 fear <- alt$cont[outcome == "distance"]
-num("FearTen", neg(f2(10 * fear$estimate))); num("FearTenSE", f2(10 * fear$se))
-num("FearTenHi", neg(f2(10 * (fear$estimate + 1.96 * fear$se))))
+num("FearTen", neg(f3(fear$estimate))); num("FearTenSE", f3(fear$se))
+num("FearTenHi", neg(f3(fear$estimate + 1.96 * fear$se)))
 num("FearPersons", big(fear$n_persons))
 ae <- function(k, e) alt$est[treat == k & outcome == "distance" & estimator == e &
                                contrast == if (e == "BJS") "waves 0-8 (imputation)" else "waves 0-8 vs -1"]

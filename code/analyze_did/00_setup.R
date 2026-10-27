@@ -184,7 +184,7 @@ main_party <- data.table(wave = c(8:14, 16:25), party = c(rep("CDA", 3), rep("VV
 # Cached results carry a tag of the panels they were computed from and of the definitions in this
 # version of the code; a cache with another tag is ignored and recomputed (14, 15). Bump def_version
 # whenever a definition changes that the panels do not reflect.
-def_version <- "2026-10-13-audit"
+def_version <- "2026-10-26-codex-audit"
 cache_tag <- function() paste(def_version, unname(tools::md5sum(path_panels)))
 
 # Balanced panel, done before calling att_gt(): keep people observed in every wave that has data,

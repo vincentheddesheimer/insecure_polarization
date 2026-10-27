@@ -813,7 +813,7 @@ pol <-
                                  (elect_today_party_18 == 11 & !is.na(elect_today_party_18)),
                                1,0),
     # DENK
-    vote_today_DENK =  ifelse((elect_today_party_17 == 14 & !is.na(elect_today_party_17))|
+    vote_today_DENK =  ifelse((elect_today_party_17 == 13 & !is.na(elect_today_party_17))|
                                 (elect_today_party_18 == 13 & !is.na(elect_today_party_18)),
                               1,0),
     # VNL (Pro Netherlands)
@@ -828,6 +828,10 @@ pol <-
     vote_today_BBB = ifelse(elect_today_party_18 == 19,1,0),
     # BIJ1
     vote_today_BIJ1 = ifelse(elect_today_party_18 == 20,1,0),
+    # Named parties added or omitted in earlier versions of this recode
+    vote_today_GL_PvdA = as.integer(elect_today_party_18 %in% 21),
+    vote_today_NSC = as.integer(elect_today_party_18 %in% 22),
+    vote_today_TON = as.integer(elect_today_party_08 %in% 11),
     # other Party
     vote_today_other =  ifelse((elect_today_party_08 == 14 & !is.na(elect_today_party_08))|
                                  (elect_today_party_11 == 13 & !is.na(elect_today_party_11))|
@@ -1479,7 +1483,8 @@ df <- df |>
 aff_pol <- df |>
   filter(partisan_comb != 1 & !is.na(ingroup_score)) |>
   group_by(nomem_encr, wave) |>
-  summarise(partisan_affect = sum(weighted_distance_to_ingroup_score, na.rm = TRUE)) |>
+  summarise(partisan_affect = if (any(!is.na(weighted_distance_to_ingroup_score)))
+    sum(weighted_distance_to_ingroup_score, na.rm = TRUE) else NA_real_) |>
   ungroup()
 
 # # merge

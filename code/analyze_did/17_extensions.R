@@ -215,10 +215,11 @@ stack_rows <- function(d, y, base_cols = character()) {
   rbindlist(lapply(sort(unique(d[G > 1, G])), function(g) {
     b <- d[t == g - 1L & emp %in% TRUE, c("id", y, "t_cal", base_cols), with = FALSE]
     setnames(b, c(y, "t_cal"), c("y_b", "t_cal_b"))
+    if (length(base_cols)) setnames(b, base_cols, paste0("baseline_", base_cols))
     x <- d[G %in% c(0L, g) & t != g - 1L & t - g >= event_window[1] & t - g <= event_window[2]]
     x <- x[t >= g | emp %in% TRUE][b, on = "id", nomatch = 0]
     x[, c(list(id = id, g = g, e = t - g, wave_t = t_cal + 7L, wave_b = t_cal_b + 7L, treated = G == g, dy = get(y) - y_b, y_b = y_b),
-          mget(base_cols))]
+          if (length(base_cols)) setNames(mget(paste0("baseline_", base_cols)), base_cols) else list())]
   }))
 }
 # DiD cells (cell_cols + g + e), averaged within (group_cols, e) by the (weighted) number of treated;
